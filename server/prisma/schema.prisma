@@ -1,0 +1,286 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================
+// USUARIOS Y AUTENTICACIÓN
+// ============================================
+
+enum UserRole {
+  COACH
+  ATHLETE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  role          UserRole  @default(ATHLETE)
+  avatar        String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relación Coach-Atleta
+  coachId       String?   @map("coach_id")
+  coach         User?     @relation("CoachAthletes", fields: [coachId], references: [id])
+  athletes      User[]    @relation("CoachAthletes")
+
+  // Strava
+  stravaToken   StravaToken?
+
+  // Actividades
+  activities    Activity[]
+
+  // Planes de entrenamiento
+  createdPlans  TrainingPlan[]  @relation("CoachPlans")
+  assignedPlans TrainingPlan[]  @relation("AthletePlans")
+
+  // Mensajes
+  sentMessages      Message[] @relation("SentMessages")
+  receivedMessages  Message[] @relation("ReceivedMessages")
+
+  // Invitaciones creadas (como coach)
+  invitations   Invitation[]
+
+  @@map("users")
+}
+
+// ============================================
+// INTEGRACIÓN STRAVA
+// ============================================
+
+model StravaToken {
+  id              String    @id @default(cuid())
+  userId          String    @unique @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  stravaAthleteId String    @map("strava_athlete_id")
+  accessToken     String    @map("access_token")
+  refreshToken    String    @map("refresh_token")
+  expiresAt       DateTime  @map("expires_at")
+  scope           String?
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("strava_tokens")
+}
+
+// ============================================
+// ACTIVIDADES
+// ============================================
+
+enum ActivityType {
+  RUNNING
+  TRAIL
+  RECOVERY
+  TEMPO
+  INTERVALS
+  LONG_RUN
+  RACE
+}
+
+enum TerrainType {
+  ASPHALT
+  TRAIL
+  MIXED
+  MOUNTAIN
+}
+
+model Activity {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Datos de Strava (si viene de ahí)
+  stravaId        String?       @unique @map("strava_id")
+  
+  // Información básica
+  name            String
+  activityType    ActivityType  @default(RUNNING) @map("activity_type")
+  date            DateTime
+  
+  // Métricas
+  distance        Float         // km
+  duration        Int           // segundos
+  elevationGain   Int           @default(0) @map("elevation_gain") // metros
+  elevationLoss   Int           @default(0) @map("elevation_loss") // metros
+  avgPace         Float?        @map("avg_pace") // segundos por km
+  avgHeartRate    Int?          @map("avg_heart_rate")
+  maxHeartRate    Int?          @map("max_heart_rate")
+  calories        Int?
+  
+  // Ubicación
+  terrainType     TerrainType?  @map("terrain_type")
+  locationName    String?       @map("location_name")
+  startLat        Float?        @map("start_lat")
+  startLng        Float?        @map("start_lng")
+  mapPolyline     String?       @map("map_polyline") // Encoded polyline de Strava
+  
+  // Splits por km (JSON)
+  splits          Json?
+  
+  // Notas y feedback
+  notes           String?
+  coachFeedback   String?       @map("coach_feedback")
+  perceivedEffort Int?          @map("perceived_effort") // 1-10
+  
+  // Relación con sesión planificada
+  planSessionId   String?       @map("plan_session_id")
+  planSession     PlanSession?  @relation(fields: [planSessionId], references: [id])
+  
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId, date])
+  @@map("activities")
+}
+
+// ============================================
+// PLANES DE ENTRENAMIENTO
+// ============================================
+
+enum PlanStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model TrainingPlan {
+  id          String      @id @default(cuid())
+  
+  coachId     String      @map("coach_id")
+  coach       User        @relation("CoachPlans", fields: [coachId], references: [id])
+  
+  athleteId   String      @map("athlete_id")
+  athlete     User        @relation("AthletePlans", fields: [athleteId], references: [id])
+  
+  name        String
+  description String?
+  startDate   DateTime    @map("start_date")
+  endDate     DateTime    @map("end_date")
+  status      PlanStatus  @default(DRAFT)
+  
+  sessions    PlanSession[]
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([coachId])
+  @@index([athleteId])
+  @@map("training_plans")
+}
+
+enum SessionType {
+  EASY
+  TEMPO
+  INTERVALS
+  LONG_RUN
+  RECOVERY
+  RACE
+  REST
+  CROSS_TRAINING
+}
+
+model PlanSession {
+  id              String        @id @default(cuid())
+  
+  planId          String        @map("plan_id")
+  plan            TrainingPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  
+  date            DateTime
+  sessionType     SessionType   @map("session_type")
+  
+  // Objetivos
+  targetDistance  Float?        @map("target_distance") // km
+  targetDuration  Int?          @map("target_duration") // segundos
+  targetPace      Float?        @map("target_pace") // segundos por km
+  
+  // Descripción
+  title           String
+  description     String?
+  warmup          String?
+  mainWorkout     String?       @map("main_workout")
+  cooldown        String?
+  
+  // Estado
+  completed       Boolean       @default(false)
+  skipped         Boolean       @default(false)
+  
+  // Actividad vinculada
+  activities      Activity[]
+  
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([planId, date])
+  @@map("plan_sessions")
+}
+
+// ============================================
+// MENSAJERÍA
+// ============================================
+
+model Message {
+  id          String    @id @default(cuid())
+  
+  senderId    String    @map("sender_id")
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  
+  receiverId  String    @map("receiver_id")
+  receiver    User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  
+  content     String
+  
+  // Para compartir actividades en el chat
+  activityId  String?   @map("activity_id")
+  
+  sentAt      DateTime  @default(now()) @map("sent_at")
+  readAt      DateTime? @map("read_at")
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, readAt])
+  @@map("messages")
+}
+
+// ============================================
+// INVITACIONES
+// ============================================
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+model Invitation {
+  id          String            @id @default(cuid())
+  
+  coachId     String            @map("coach_id")
+  coach       User              @relation(fields: [coachId], references: [id])
+  
+  code        String            @unique
+  email       String?           // Email opcional del invitado
+  status      InvitationStatus  @default(PENDING)
+  
+  createdAt   DateTime          @default(now()) @map("created_at")
+  expiresAt   DateTime          @map("expires_at")
+  usedAt      DateTime?         @map("used_at")
+  usedByEmail String?           @map("used_by_email")
+
+  @@index([code])
+  @@index([coachId])
+  @@map("invitations")
+}
