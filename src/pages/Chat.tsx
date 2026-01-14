@@ -55,10 +55,15 @@ function formatDate(dateString: string): string {
 }
 
 function groupMessagesByDate(messages: Message[]): { date: string; messages: Message[] }[] {
+  // First, sort messages by sentAt to ensure chronological order
+  const sortedMessages = [...messages].sort((a, b) => 
+    new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
+  );
+
   const groups: { date: string; messages: Message[] }[] = [];
   let currentDate = '';
 
-  messages.forEach(message => {
+  sortedMessages.forEach(message => {
     const messageDate = new Date(message.sentAt).toDateString();
     if (messageDate !== currentDate) {
       currentDate = messageDate;
@@ -122,7 +127,7 @@ export default function Chat() {
 
         // Load messages
         const { messages: msgs, hasMore: more } = await messageService.getMessages(oderId);
-        setMessages(msgs.reverse()); // API returns newest first, we want oldest first
+        setMessages(msgs); // API already returns in chronological order (oldest first)
         setHasMore(more);
 
         // Mark as read
@@ -153,13 +158,17 @@ export default function Chat() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Listen for new messages
+  // Listen for new messages via socket
   useEffect(() => {
     if (!oderId) return;
 
     const unsubscribe = onNewMessage((message) => {
       if (message.senderId === oderId || message.receiverId === oderId) {
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => {
+          // Avoid duplicates
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
         
         // Mark as read if from other user
         if (message.senderId === oderId) {
@@ -193,18 +202,18 @@ export default function Chat() {
     setIsSending(true);
 
     try {
-      // Send via socket for real-time
-      sendMessage(oderId, content);
-      
-      // Also send via API for persistence
+      // Send via API for persistence (this is the source of truth)
       const { message } = await messageService.sendMessage(oderId, content);
       
-      // Add to local state (socket will also add it, but this ensures it's there)
+      // Add to local state
       setMessages(prev => {
         // Avoid duplicates
         if (prev.some(m => m.id === message.id)) return prev;
         return [...prev, message];
       });
+      
+      // Also notify via socket for real-time
+      sendMessage(oderId, content);
     } catch (error) {
       toast({
         variant: 'destructive',
