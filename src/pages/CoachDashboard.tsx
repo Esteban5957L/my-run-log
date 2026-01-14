@@ -13,7 +13,8 @@ import {
   Mountain,
   Copy,
   Check,
-  RefreshCw
+  RefreshCw,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { athleteService } from '@/services/athlete.service';
@@ -56,7 +57,7 @@ function getInitials(name: string): string {
 }
 
 export default function CoachDashboard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
@@ -166,6 +167,14 @@ export default function CoachDashboard() {
                   {user?.name ? getInitials(user.name) : 'CO'}
                 </AvatarFallback>
               </Avatar>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={logout}
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
             </div>
           </div>
         </div>
