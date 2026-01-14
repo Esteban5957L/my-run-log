@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import type { Message } from '@/types/message';
 
-const SOCKET_URL = 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
 class SocketService {
   private socket: Socket | null = null;
