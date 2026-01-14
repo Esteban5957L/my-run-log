@@ -21,19 +21,31 @@ import { setupSocket } from './socket/index.js';
 const app = express();
 const httpServer = createServer(app);
 
+// CORS origins
+const allowedOrigins = [
+  env.FRONTEND_URL,
+  'http://localhost:8080',
+  'http://localhost:8081',
+  'https://my-run-log.vercel.app',
+];
+
+console.log('✅ Allowed CORS origins:', allowedOrigins);
+
 // Socket.io setup
 const io = new Server(httpServer, {
   cors: {
-    origin: [env.FRONTEND_URL, 'http://localhost:8081', 'http://localhost:8080'],
-    methods: ['GET', 'POST'],
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
   },
 });
 
 // Middleware
 app.use(cors({
-  origin: [env.FRONTEND_URL, 'http://localhost:8081', 'http://localhost:8080'],
+  origin: allowedOrigins,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 
