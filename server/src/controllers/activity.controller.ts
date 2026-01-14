@@ -3,6 +3,13 @@ import { z } from 'zod';
 import { prisma } from '../config/database.js';
 import { ActivityType, TerrainType } from '@prisma/client';
 
+// Helper para obtener parámetros de forma segura
+const getParam = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return undefined;
+};
+
 const createActivitySchema = z.object({
   name: z.string().min(1),
   activityType: z.nativeEnum(ActivityType).default('RUNNING'),
@@ -33,12 +40,17 @@ export async function getActivities(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { userId, from, to, type, limit = '50', offset = '0' } = req.query;
+    const userId = getParam(req.query.userId);
+    const from = getParam(req.query.from);
+    const to = getParam(req.query.to);
+    const type = getParam(req.query.type);
+    const limit = getParam(req.query.limit) || '50';
+    const offset = getParam(req.query.offset) || '0';
     
     let targetUserId = req.user.userId;
 
     // Si se especifica un userId, verificar permisos
-    if (userId && typeof userId === 'string') {
+    if (userId) {
       if (req.user.role === 'COACH') {
         const athlete = await prisma.user.findFirst({
           where: { id: userId, coachId: req.user.userId }
@@ -54,21 +66,21 @@ export async function getActivities(req: Request, res: Response) {
 
     const where: any = { userId: targetUserId };
 
-    if (from && typeof from === 'string') {
+    if (from) {
       where.date = { ...where.date, gte: new Date(from) };
     }
-    if (to && typeof to === 'string') {
+    if (to) {
       where.date = { ...where.date, lte: new Date(to) };
     }
-    if (type && typeof type === 'string') {
+    if (type) {
       where.activityType = type;
     }
 
     const [activities, total] = await Promise.all([
       prisma.activity.findMany({
         where,
-        take: parseInt(limit as string),
-        skip: parseInt(offset as string),
+        take: parseInt(limit),
+        skip: parseInt(offset),
         orderBy: { date: 'desc' },
         include: {
           planSession: {
@@ -98,7 +110,10 @@ export async function getActivity(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { activityId } = req.params;
+    const activityId = getParam(req.params.activityId);
+    if (!activityId) {
+      return res.status(400).json({ error: 'activityId es requerido' });
+    }
 
     const activity = await prisma.activity.findUnique({
       where: { id: activityId },
@@ -189,7 +204,10 @@ export async function updateActivity(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { activityId } = req.params;
+    const activityId = getParam(req.params.activityId);
+    if (!activityId) {
+      return res.status(400).json({ error: 'activityId es requerido' });
+    }
 
     const existing = await prisma.activity.findUnique({
       where: { id: activityId }
@@ -234,7 +252,10 @@ export async function deleteActivity(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { activityId } = req.params;
+    const activityId = getParam(req.params.activityId);
+    if (!activityId) {
+      return res.status(400).json({ error: 'activityId es requerido' });
+    }
 
     const existing = await prisma.activity.findUnique({
       where: { id: activityId }
@@ -266,7 +287,10 @@ export async function addCoachFeedback(req: Request, res: Response) {
       return res.status(403).json({ error: 'Solo los entrenadores pueden agregar feedback' });
     }
 
-    const { activityId } = req.params;
+    const activityId = getParam(req.params.activityId);
+    if (!activityId) {
+      return res.status(400).json({ error: 'activityId es requerido' });
+    }
     const { feedback } = req.body;
 
     if (!feedback || typeof feedback !== 'string') {
@@ -284,7 +308,8 @@ export async function addCoachFeedback(req: Request, res: Response) {
       return res.status(404).json({ error: 'Actividad no encontrada' });
     }
 
-    if (activity.user.coachId !== req.user.userId) {
+    const activityUser = activity as typeof activity & { user: { coachId: string | null } };
+    if (activityUser.user.coachId !== req.user.userId) {
       return res.status(403).json({ error: 'No eres el entrenador de este atleta' });
     }
 

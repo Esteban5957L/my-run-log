@@ -2,6 +2,13 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../config/database.js';
 
+// Helper para obtener parámetros de forma segura
+const getParam = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return undefined;
+};
+
 const sendMessageSchema = z.object({
   receiverId: z.string(),
   content: z.string().min(1).max(2000),
@@ -91,8 +98,12 @@ export async function getMessages(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { userId } = req.params;
-    const { limit = '50', before } = req.query;
+    const userId = getParam(req.params.userId);
+    if (!userId) {
+      return res.status(400).json({ error: 'userId es requerido' });
+    }
+    const limit = getParam(req.query.limit) || '50';
+    const before = getParam(req.query.before);
 
     // Verificar que puedo chatear con este usuario
     const otherUser = await prisma.user.findUnique({
@@ -125,13 +136,13 @@ export async function getMessages(req: Request, res: Response) {
       ]
     };
 
-    if (before && typeof before === 'string') {
+    if (before) {
       where.sentAt = { lt: new Date(before) };
     }
 
     const messages = await prisma.message.findMany({
       where,
-      take: parseInt(limit as string),
+      take: parseInt(limit),
       orderBy: { sentAt: 'desc' },
       include: {
         sender: {
@@ -248,7 +259,10 @@ export async function markAsRead(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { senderId } = req.params;
+    const senderId = getParam(req.params.senderId);
+    if (!senderId) {
+      return res.status(400).json({ error: 'senderId es requerido' });
+    }
 
     await prisma.message.updateMany({
       where: {

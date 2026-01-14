@@ -3,6 +3,13 @@ import { z } from 'zod';
 import { prisma } from '../config/database.js';
 import { SessionType, PlanStatus } from '@prisma/client';
 
+// Helper para obtener parámetros de forma segura
+const getParam = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return undefined;
+};
+
 const sessionSchema = z.object({
   date: z.string().datetime(),
   sessionType: z.nativeEnum(SessionType),
@@ -38,20 +45,21 @@ export async function getPlans(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { athleteId, status } = req.query;
+    const athleteId = getParam(req.query.athleteId);
+    const status = getParam(req.query.status);
 
     let where: any = {};
 
     if (req.user.role === 'COACH') {
       where.coachId = req.user.userId;
-      if (athleteId && typeof athleteId === 'string') {
+      if (athleteId) {
         where.athleteId = athleteId;
       }
     } else {
       where.athleteId = req.user.userId;
     }
 
-    if (status && typeof status === 'string') {
+    if (status) {
       where.status = status;
     }
 
@@ -90,7 +98,10 @@ export async function getPlan(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { planId } = req.params;
+    const planId = getParam(req.params.planId);
+    if (!planId) {
+      return res.status(400).json({ error: 'planId es requerido' });
+    }
 
     const plan = await prisma.trainingPlan.findUnique({
       where: { id: planId },
@@ -132,7 +143,7 @@ export async function getPlan(req: Request, res: Response) {
     }
 
     // Calcular estadísticas del plan
-    const completedSessions = plan.sessions.filter(s => s.completed).length;
+    const completedSessions = plan.sessions.filter((s: { completed: boolean }) => s.completed).length;
     const totalSessions = plan.sessions.length;
     const completionRate = totalSessions > 0 ? (completedSessions / totalSessions) * 100 : 0;
 
@@ -214,7 +225,10 @@ export async function updatePlan(req: Request, res: Response) {
       return res.status(403).json({ error: 'Solo los entrenadores pueden actualizar planes' });
     }
 
-    const { planId } = req.params;
+    const planId = getParam(req.params.planId);
+    if (!planId) {
+      return res.status(400).json({ error: 'planId es requerido' });
+    }
 
     const existing = await prisma.trainingPlan.findUnique({
       where: { id: planId }
@@ -252,7 +266,10 @@ export async function deletePlan(req: Request, res: Response) {
       return res.status(403).json({ error: 'Solo los entrenadores pueden eliminar planes' });
     }
 
-    const { planId } = req.params;
+    const planId = getParam(req.params.planId);
+    if (!planId) {
+      return res.status(400).json({ error: 'planId es requerido' });
+    }
 
     const existing = await prisma.trainingPlan.findUnique({
       where: { id: planId }
@@ -280,7 +297,10 @@ export async function addSession(req: Request, res: Response) {
       return res.status(403).json({ error: 'Solo los entrenadores pueden agregar sesiones' });
     }
 
-    const { planId } = req.params;
+    const planId = getParam(req.params.planId);
+    if (!planId) {
+      return res.status(400).json({ error: 'planId es requerido' });
+    }
 
     const plan = await prisma.trainingPlan.findUnique({
       where: { id: planId }
@@ -321,7 +341,10 @@ export async function updateSessionStatus(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { sessionId } = req.params;
+    const sessionId = getParam(req.params.sessionId);
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId es requerido' });
+    }
     const { completed, skipped } = req.body;
 
     const session = await prisma.planSession.findUnique({

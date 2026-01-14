@@ -2,6 +2,13 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../config/database.js';
 
+// Helper para obtener parámetros de forma segura
+const getParam = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return undefined;
+};
+
 const updateProfileSchema = z.object({
   name: z.string().min(2).optional(),
   avatar: z.string().url().optional().nullable(),
@@ -44,7 +51,10 @@ export async function updateProfile(req: Request, res: Response) {
 
 export async function getProfile(req: Request, res: Response) {
   try {
-    const { userId } = req.params;
+    const userId = getParam(req.params.userId);
+    if (!userId) {
+      return res.status(400).json({ error: 'userId es requerido' });
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },

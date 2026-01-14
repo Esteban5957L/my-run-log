@@ -2,6 +2,13 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/database.js';
 import { subDays } from 'date-fns';
 
+// Helper para obtener parámetros de forma segura
+const getParam = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return undefined;
+};
+
 // Obtener todos los atletas de un entrenador
 export async function getMyAthletes(req: Request, res: Response) {
   try {
@@ -90,7 +97,10 @@ export async function getAthleteDetail(req: Request, res: Response) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { athleteId } = req.params;
+    const athleteId = getParam(req.params.athleteId);
+    if (!athleteId) {
+      return res.status(400).json({ error: 'athleteId es requerido' });
+    }
 
     // Verificar permisos
     const athlete = await prisma.user.findUnique({
@@ -228,7 +238,10 @@ export async function removeAthlete(req: Request, res: Response) {
       return res.status(403).json({ error: 'Solo los entrenadores pueden desvincular atletas' });
     }
 
-    const { athleteId } = req.params;
+    const athleteId = getParam(req.params.athleteId);
+    if (!athleteId) {
+      return res.status(400).json({ error: 'athleteId es requerido' });
+    }
 
     const athlete = await prisma.user.findUnique({
       where: { id: athleteId }

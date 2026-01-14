@@ -4,6 +4,13 @@ import { prisma } from '../config/database.js';
 import { randomBytes } from 'crypto';
 import { addDays } from 'date-fns';
 
+// Helper para obtener parámetros de forma segura
+const getParam = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return undefined;
+};
+
 function generateInvitationCode(): string {
   return randomBytes(4).toString('hex').toUpperCase();
 }
@@ -101,7 +108,10 @@ export async function getMyInvitations(req: Request, res: Response) {
 // Verificar código de invitación (público)
 export async function verifyInvitation(req: Request, res: Response) {
   try {
-    const { code } = req.params;
+    const code = getParam(req.params.code);
+    if (!code) {
+      return res.status(400).json({ error: 'Código es requerido' });
+    }
 
     const invitation = await prisma.invitation.findUnique({
       where: { code },
@@ -124,9 +134,15 @@ export async function verifyInvitation(req: Request, res: Response) {
       return res.status(400).json({ error: 'Esta invitación ha expirado' });
     }
 
+    // Obtener info del coach
+    const coach = await prisma.user.findUnique({
+      where: { id: invitation.coachId },
+      select: { id: true, name: true, avatar: true }
+    });
+
     res.json({ 
       valid: true,
-      coach: invitation.coach,
+      coach,
       email: invitation.email,
     });
   } catch (error) {
@@ -142,7 +158,10 @@ export async function cancelInvitation(req: Request, res: Response) {
       return res.status(403).json({ error: 'Solo los entrenadores pueden cancelar invitaciones' });
     }
 
-    const { invitationId } = req.params;
+    const invitationId = getParam(req.params.invitationId);
+    if (!invitationId) {
+      return res.status(400).json({ error: 'invitationId es requerido' });
+    }
 
     const invitation = await prisma.invitation.findUnique({
       where: { id: invitationId }
