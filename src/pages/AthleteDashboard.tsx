@@ -15,7 +15,8 @@ import {
   Target,
   Award,
   Heart,
-  MapPin
+  MapPin,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { dashboardService } from '@/services/dashboard.service';
