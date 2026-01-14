@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F7931E;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="runnerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F0F0F0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Fondo redondeado -->
+  <rect x="20" y="20" width="472" height="472" rx="100" ry="100" fill="url(#bgGradient)"/>
+  
+  <!-- Figura de corredor estilizada -->
+  <g transform="translate(256, 256)">
+    <!-- Cabeza -->
+    <circle cx="30" cy="-95" r="35" fill="white"/>
+    
+    <!-- Cuerpo dinámico -->
+    <path d="M 25 -55 
+             Q 0 0 -30 50
+             L -15 55
+             Q 10 10 30 -45
+             Z" 
+          fill="white"/>
+    
+    <!-- Brazo trasero -->
+    <path d="M 15 -45
+             Q -40 -20 -70 -60
+             L -60 -75
+             Q -30 -40 20 -55
+             Z"
+          fill="white"/>
+    
+    <!-- Brazo delantero -->
+    <path d="M 30 -45
+             Q 80 -80 95 -50
+             L 85 -35
+             Q 70 -55 25 -35
+             Z"
+          fill="white"/>
+    
+    <!-- Pierna trasera -->
+    <path d="M -35 50
+             Q -90 90 -110 70
+             L -100 55
+             Q -75 70 -20 45
+             Z"
+          fill="white"/>
+    
+    <!-- Pierna delantera -->
+    <path d="M -15 55
+             Q 50 100 90 130
+             L 100 115
+             Q 55 85 -5 45
+             Z"
+          fill="white"/>
+  </g>
+  
+  <!-- Líneas de velocidad -->
+  <g stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.7">
+    <line x1="80" y1="200" x2="140" y2="200"/>
+    <line x1="60" y1="240" x2="130" y2="240"/>
+    <line x1="80" y1="280" x2="150" y2="280"/>
+  </g>
+</svg>

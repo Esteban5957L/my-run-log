@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, LogIn, Zap } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { RunnioLogo } from '@/components/ui/RunnioLogo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -49,9 +50,7 @@ export default function Login() {
             transition={{ duration: 0.6 }}
           >
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-trail flex items-center justify-center shadow-lg">
-                <Zap className="w-8 h-8 text-primary-foreground" />
-              </div>
+              <RunnioLogo size="xl" />
               <h1 className="font-display text-5xl text-gradient-trail">RUNN.IO</h1>
             </div>
             <h2 className="text-4xl font-display text-foreground mb-4">
@@ -92,9 +91,7 @@ export default function Login() {
           className="w-full max-w-md"
         >
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-12 h-12 rounded-xl bg-gradient-trail flex items-center justify-center">
-              <Zap className="w-7 h-7 text-primary-foreground" />
-            </div>
+            <RunnioLogo size="lg" />
             <h1 className="font-display text-4xl text-gradient-trail">RUNN.IO</h1>
           </div>
 

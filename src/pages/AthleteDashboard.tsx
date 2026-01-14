@@ -12,7 +12,6 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  Zap,
   Target,
   Award,
   Heart,
@@ -24,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { RunnioLogo } from '@/components/ui/RunnioLogo';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -164,9 +164,7 @@ export default function AthleteDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-trail flex items-center justify-center">
-                <Zap className="w-6 h-6 text-primary-foreground" />
-              </div>
+              <RunnioLogo size="md" />
               <div>
                 <h1 className="font-display text-xl">RUNN.IO</h1>
                 <p className="text-xs text-muted-foreground">Mi Dashboard</p>

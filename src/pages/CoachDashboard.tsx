@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { RunnioLogo } from '@/components/ui/RunnioLogo';
 import {
   Dialog,
   DialogContent,
@@ -141,9 +142,7 @@ export default function CoachDashboard() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-trail flex items-center justify-center">
-                <Activity className="w-6 h-6 text-primary-foreground" />
-              </div>
+              <RunnioLogo size="md" />
               <div>
                 <h1 className="font-display text-xl">RUNN.IO</h1>
                 <p className="text-sm text-muted-foreground">Panel del Entrenador</p>

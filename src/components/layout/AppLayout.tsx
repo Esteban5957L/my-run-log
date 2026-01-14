@@ -12,10 +12,10 @@ import {
   Settings,
   Menu,
   X,
-  Mountain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { RunnioLogo } from '@/components/ui/RunnioLogo';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -37,10 +37,7 @@ export function AppLayout() {
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 glass-strong">
         <div className="flex items-center justify-between px-4 h-16">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-trail flex items-center justify-center">
-              <Mountain className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="font-display text-2xl text-gradient-trail">TRAILLOG</span>
+            <RunnioLogo size="md" showText textClassName="text-foreground" />
           </Link>
           <Button
             variant="ghost"
@@ -75,13 +72,7 @@ export function AppLayout() {
         <div className="flex flex-col h-full p-6">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 mb-10" onClick={() => setSidebarOpen(false)}>
-            <div className="w-12 h-12 rounded-xl bg-gradient-trail flex items-center justify-center shadow-lg">
-              <Mountain className="w-7 h-7 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-display text-3xl text-gradient-trail leading-none">TRAILLOG</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Running & Trail</p>
-            </div>
+            <RunnioLogo size="lg" showText textClassName="text-3xl text-foreground" />
           </Link>
 
           {/* Navigation */}
