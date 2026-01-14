@@ -83,7 +83,7 @@ export async function exchangeStravaCode(code: string): Promise<StravaTokenRespo
   }
 
   console.log('✅ Strava code exchanged successfully');
-  return response.json();
+  return response.json() as Promise<StravaTokenResponse>;
 }
 
 export async function refreshStravaToken(refreshToken: string): Promise<StravaTokenResponse> {
@@ -102,7 +102,7 @@ export async function refreshStravaToken(refreshToken: string): Promise<StravaTo
     throw new Error('Failed to refresh Strava token');
   }
 
-  return response.json();
+  return response.json() as Promise<StravaTokenResponse>;
 }
 
 async function getValidAccessToken(userId: string): Promise<string | null> {
@@ -162,7 +162,7 @@ export async function fetchStravaActivities(
     throw new Error('Failed to fetch Strava activities');
   }
 
-  return response.json();
+  return response.json() as Promise<StravaActivity[]>;
 }
 
 export async function fetchStravaActivityDetail(
@@ -186,7 +186,7 @@ export async function fetchStravaActivityDetail(
     throw new Error('Failed to fetch Strava activity detail');
   }
 
-  return response.json();
+  return response.json() as Promise<StravaActivity>;
 }
 
 function mapStravaActivityType(stravaType: string): ActivityType {
@@ -239,7 +239,7 @@ export async function syncStravaActivities(userId: string): Promise<number> {
         startLat: stravaActivity.start_latlng?.[0],
         startLng: stravaActivity.start_latlng?.[1],
         mapPolyline: stravaActivity.map?.summary_polyline,
-        splits: stravaActivity.splits_metric ? JSON.stringify(stravaActivity.splits_metric) : null,
+        splits: stravaActivity.splits_metric ? JSON.stringify(stravaActivity.splits_metric) : undefined,
       }
     });
 
