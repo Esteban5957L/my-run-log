@@ -157,6 +157,18 @@ export default function AthleteDashboard() {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-display text-foreground mb-2">Error al cargar</h2>
+          <p className="text-muted-foreground mb-4">No se pudo cargar el dashboard</p>
+          <Button onClick={loadDashboard}>Reintentar</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
