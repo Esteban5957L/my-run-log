@@ -90,7 +90,7 @@ export default function PlanForm() {
 
   const loadAthletes = async () => {
     try {
-      const response = await athleteService.getAthletes();
+      const response = await athleteService.getMyAthletes();
       setAthletes(response.athletes);
     } catch (error) {
       console.error('Error loading athletes:', error);
