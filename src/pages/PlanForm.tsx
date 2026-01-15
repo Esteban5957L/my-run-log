@@ -71,6 +71,7 @@ export default function PlanForm() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingAthletes, setIsLoadingAthletes] = useState(true);
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   
   // Form state
@@ -90,10 +91,13 @@ export default function PlanForm() {
 
   const loadAthletes = async () => {
     try {
+      setIsLoadingAthletes(true);
       const response = await athleteService.getMyAthletes();
       setAthletes(response.athletes);
     } catch (error) {
       console.error('Error loading athletes:', error);
+    } finally {
+      setIsLoadingAthletes(false);
     }
   };
 
@@ -323,24 +327,41 @@ export default function PlanForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="athlete">Atleta *</Label>
-                  <Select value={athleteId} onValueChange={setAthleteId} disabled={isEditing}>
+                  <Select value={athleteId} onValueChange={setAthleteId} disabled={isEditing || isLoadingAthletes}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un atleta" />
+                      {isLoadingAthletes ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span>Cargando atletas...</span>
+                        </div>
+                      ) : (
+                        <SelectValue placeholder="Selecciona un atleta" />
+                      )}
                     </SelectTrigger>
                     <SelectContent>
-                      {athletes.map((athlete) => (
-                        <SelectItem key={athlete.id} value={athlete.id}>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="w-6 h-6">
-                              <AvatarImage src={athlete.avatar} />
-                              <AvatarFallback className="text-xs">
-                                {athlete.name.split(' ').map(n => n[0]).join('')}
-                              </AvatarFallback>
-                            </Avatar>
-                            {athlete.name}
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {isLoadingAthletes ? (
+                        <div className="flex items-center justify-center py-4">
+                          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      ) : athletes.length === 0 ? (
+                        <div className="py-4 text-center text-sm text-muted-foreground">
+                          No tienes atletas asignados
+                        </div>
+                      ) : (
+                        athletes.map((athlete) => (
+                          <SelectItem key={athlete.id} value={athlete.id}>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="w-6 h-6">
+                                <AvatarImage src={athlete.avatar} />
+                                <AvatarFallback className="text-xs">
+                                  {athlete.name.split(' ').map(n => n[0]).join('')}
+                                </AvatarFallback>
+                              </Avatar>
+                              {athlete.name}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
