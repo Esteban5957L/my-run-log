@@ -9,14 +9,12 @@ import {
   Heart,
   Zap,
   Calendar,
-  MapPin,
   Activity as ActivityIcon,
   MessageSquare,
   Send,
   Loader2,
   ChevronDown,
   ChevronUp,
-  Map,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { activityService } from '@/services/activity.service';
@@ -32,6 +30,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { RunnioLogo } from '@/components/ui/RunnioLogo';
+import ActivityMap from '@/components/maps/ActivityMap';
 
 function formatDistance(km: number): string {
   return km.toFixed(2) + ' km';
@@ -208,23 +207,19 @@ export default function ActivityDetail() {
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
-        {/* Mapa placeholder */}
+        {/* Mapa */}
         {activity.mapPolyline && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
             <Card className="overflow-hidden">
-              <div className="h-[200px] flex items-center justify-center bg-muted/30">
-                <div className="text-center text-muted-foreground">
-                  <Map className="w-12 h-12 mx-auto mb-2" />
-                  <p className="text-sm">Mapa del recorrido disponible</p>
-                  {activity.startLat && activity.startLng && (
-                    <p className="text-xs mt-1">
-                      Inicio: {activity.startLat.toFixed(4)}, {activity.startLng.toFixed(4)}
-                    </p>
-                  )}
-                </div>
+              <div className="h-[300px] sm:h-[400px]">
+                <ActivityMap 
+                  polyline={activity.mapPolyline}
+                  startLat={activity.startLat}
+                  startLng={activity.startLng}
+                />
               </div>
             </Card>
           </motion.div>
