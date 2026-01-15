@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Plus, TrendingUp, Mountain, Clock, Activity } from 'lucide-react';
+import { Plus, TrendingUp, Mountain, Clock, Activity, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { StatsCard } from '@/components/dashboard/StatsCard';
@@ -29,12 +29,20 @@ export default function Dashboard() {
           <h1 className="font-display text-4xl sm:text-5xl text-foreground">DASHBOARD</h1>
           <p className="text-muted-foreground capitalize">{currentMonth}</p>
         </div>
-        <Button variant="hero" size="lg" asChild>
-          <Link to="/log">
-            <Plus className="w-5 h-5" />
-            Registrar Entrenamiento
-          </Link>
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button variant="hero" size="lg" asChild>
+            <Link to="/log">
+              <Plus className="w-5 h-5" />
+              Registrar Entrenamiento
+            </Link>
+          </Button>
+          <Button variant="outline" size="lg" asChild>
+            <Link to="/races">
+              <Trophy className="w-5 h-5" />
+              Mis Carreras
+            </Link>
+          </Button>
+        </div>
       </motion.div>
 
       {/* Stats Grid */}
