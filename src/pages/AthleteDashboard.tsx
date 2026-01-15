@@ -36,14 +36,16 @@ import { useToast } from '@/hooks/use-toast';
 import type { Activity as ActivityType } from '@/types/activity';
 import { ACTIVITY_TYPE_LABELS } from '@/types/activity';
 
-function formatDistance(meters: number): string {
-  if (meters >= 1000) {
-    return (meters / 1000).toFixed(1) + ' km';
+function formatDistance(km: number): string {
+  if (km === 0) return '0 km';
+  if (km < 1) {
+    return Math.round(km * 1000) + ' m';
   }
-  return meters + ' m';
+  return km.toFixed(1) + ' km';
 }
 
 function formatDuration(seconds: number): string {
+  if (seconds === 0) return '0m';
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   if (hours > 0) {
@@ -52,11 +54,20 @@ function formatDuration(seconds: number): string {
   return `${minutes}m`;
 }
 
-function formatPace(pace: number | null | undefined): string {
-  if (!pace) return '-';
-  const minutes = Math.floor(pace);
-  const secs = Math.round((pace - minutes) * 60);
+function formatPace(secondsPerKm: number | null | undefined): string {
+  if (!secondsPerKm || secondsPerKm === 0) return '-';
+  const totalMinutes = secondsPerKm / 60;
+  const minutes = Math.floor(totalMinutes);
+  const secs = Math.round((totalMinutes - minutes) * 60);
   return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+function formatElevation(meters: number): string {
+  if (meters === 0) return '0 m';
+  if (meters >= 1000) {
+    return (meters / 1000).toFixed(1) + ' km';
+  }
+  return Math.round(meters).toLocaleString('es-ES') + ' m';
 }
 
 function formatDate(dateString: string): string {
@@ -301,7 +312,7 @@ export default function AthleteDashboard() {
               </div>
             </div>
             <div className="font-display text-2xl text-foreground">
-              {data?.stats.weekly.elevation || 0}m
+              {formatElevation(data?.stats.weekly.elevation || 0)}
             </div>
             <div className="text-xs text-muted-foreground">Desnivel +</div>
           </div>
@@ -502,7 +513,7 @@ export default function AthleteDashboard() {
             </div>
             <div className="text-center p-3 bg-muted/30 rounded-lg">
               <Mountain className="w-5 h-5 mx-auto mb-2 text-summit" />
-              <div className="font-display text-xl">{data?.stats.monthly.elevation || 0}m</div>
+              <div className="font-display text-xl">{formatElevation(data?.stats.monthly.elevation || 0)}</div>
               <div className="text-xs text-muted-foreground">Desnivel</div>
             </div>
             <div className="text-center p-3 bg-muted/30 rounded-lg">
