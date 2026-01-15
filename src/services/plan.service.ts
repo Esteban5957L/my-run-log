@@ -1,4 +1,4 @@
-import api from './api';
+import { api } from './api';
 import { 
   TrainingPlan, 
   CreatePlanData, 
@@ -27,26 +27,22 @@ export const planService = {
     if (athleteId) params.append('athleteId', athleteId);
     if (status) params.append('status', status);
     
-    const response = await api.get(`/plans?${params.toString()}`);
-    return response.data;
+    return api.get<PlansResponse>(`/plans?${params.toString()}`);
   },
 
   // Obtener un plan por ID
   async getPlan(planId: string): Promise<PlanResponse> {
-    const response = await api.get(`/plans/${planId}`);
-    return response.data;
+    return api.get<PlanResponse>(`/plans/${planId}`);
   },
 
   // Crear un nuevo plan
   async createPlan(data: CreatePlanData): Promise<{ plan: TrainingPlan }> {
-    const response = await api.post('/plans', data);
-    return response.data;
+    return api.post<{ plan: TrainingPlan }>('/plans', data);
   },
 
   // Actualizar un plan
   async updatePlan(planId: string, data: UpdatePlanData): Promise<{ plan: TrainingPlan }> {
-    const response = await api.put(`/plans/${planId}`, data);
-    return response.data;
+    return api.put<{ plan: TrainingPlan }>(`/plans/${planId}`, data);
   },
 
   // Eliminar un plan
@@ -56,8 +52,7 @@ export const planService = {
 
   // Agregar una sesión a un plan
   async addSession(planId: string, data: CreateSessionData): Promise<{ session: PlanSession }> {
-    const response = await api.post(`/plans/${planId}/sessions`, data);
-    return response.data;
+    return api.post<{ session: PlanSession }>(`/plans/${planId}/sessions`, data);
   },
 
   // Actualizar estado de una sesión
@@ -65,7 +60,6 @@ export const planService = {
     sessionId: string, 
     data: { completed?: boolean; skipped?: boolean }
   ): Promise<{ session: PlanSession }> {
-    const response = await api.patch(`/plans/sessions/${sessionId}`, data);
-    return response.data;
+    return api.patch<{ session: PlanSession }>(`/plans/sessions/${sessionId}`, data);
   },
 };
