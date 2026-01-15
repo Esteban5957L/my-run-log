@@ -192,7 +192,10 @@ export default function Settings() {
           className="glass rounded-xl p-6"
         >
           <h2 className="font-display text-lg mb-4">PERFIL</h2>
-          <div className="flex items-center gap-4">
+          <div 
+            className="flex items-center gap-4 cursor-pointer hover:bg-muted/50 rounded-lg p-2 -m-2 transition-colors"
+            onClick={() => navigate('/profile')}
+          >
             <Avatar className="w-16 h-16">
               <AvatarImage src={user?.avatar || undefined} />
               <AvatarFallback className="bg-gradient-trail text-primary-foreground text-xl">
@@ -206,9 +209,7 @@ export default function Settings() {
                 {user?.role === 'COACH' ? 'Entrenador' : 'Atleta'}
               </Badge>
             </div>
-            <Button variant="ghost" size="icon">
-              <ChevronRight className="w-5 h-5" />
-            </Button>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </div>
         </motion.div>
 
