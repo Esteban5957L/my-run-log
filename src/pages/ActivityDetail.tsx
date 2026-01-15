@@ -158,9 +158,14 @@ export default function ActivityDetail() {
     try {
       setIsLoading(true);
       const response = await activityService.getActivity(id);
-      setActivity(response.activity);
-      setFeedback(response.activity.coachFeedback || '');
+      if (response?.activity) {
+        setActivity(response.activity);
+        setFeedback(response.activity.coachFeedback || '');
+      } else {
+        throw new Error('Activity not found');
+      }
     } catch (error) {
+      console.error('Error loading activity:', error);
       toast({
         variant: 'destructive',
         title: 'Error',

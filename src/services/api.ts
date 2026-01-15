@@ -27,7 +27,15 @@ async function request<T>(
     headers,
   });
 
-  const data = await response.json();
+  let data;
+  try {
+    data = await response.json();
+  } catch (e) {
+    if (!response.ok) {
+      throw new ApiError(response.status, 'Error en la solicitud');
+    }
+    return {} as T;
+  }
 
   if (!response.ok) {
     throw new ApiError(response.status, data.error || 'Error en la solicitud');
