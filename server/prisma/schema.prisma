@@ -78,6 +78,9 @@ model User {
   // Equipamiento
   gear          Gear[]
 
+  // Carreras
+  races         Race[]
+
   @@map("users")
 }
 
@@ -167,7 +170,10 @@ model Activity {
   
   // Equipamiento usado
   gear            ActivityGear[]
-  
+
+  // Carrera asociada
+  race            Race?
+
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
@@ -205,7 +211,10 @@ model TrainingPlan {
   isTemplate  Boolean     @default(false) @map("is_template")
   
   sessions    PlanSession[]
-  
+
+  // Carrera objetivo
+  races       Race[]      @relation("RaceTrainingPlan")
+
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
@@ -499,4 +508,85 @@ model ActivityGear {
 
   @@unique([activityId, gearId])
   @@map("activity_gear")
+}
+
+// ============================================
+// CARRERAS Y COMPETICIONES
+// ============================================
+
+enum RaceType {
+  FIVE_K         // 5K
+  TEN_K          // 10K
+  HALF_MARATHON  // Media maratón (21.1K)
+  MARATHON       // Maratón (42.2K)
+  ULTRA          // Ultra maratón
+  TRAIL          // Trail running
+  TRACK          // Pista
+  OTHER          // Otra distancia
+}
+
+enum RaceStatus {
+  UPCOMING       // Próxima
+  COMPLETED      // Completada
+  CANCELLED      // Cancelada
+  DNF            // No terminó
+}
+
+model Race {
+  id              String      @id @default(cuid())
+
+  userId          String      @map("user_id")
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name            String
+  description     String?
+  raceType        RaceType    @map("race_type")
+  distance        Float       // km
+  date            DateTime
+  location        String?
+  website         String?     // URL de la carrera
+
+  // Coordenadas para mapa
+  locationLat     Float?      @map("location_lat")
+  locationLng     Float?      @map("location_lng")
+
+  // Objetivos
+  targetTime      Int?        @map("target_time") // segundos
+  targetPace      Float?      @map("target_pace") // segundos/km
+
+  // Resultado real
+  status          RaceStatus  @default(UPCOMING)
+  actualTime      Int?        @map("actual_time") // segundos
+  actualPace      Float?      @map("actual_pace") // segundos/km
+  position        Int?        // Posición general
+  categoryPosition Int?       @map("category_position") // Posición en categoría
+  category        String?     // Categoría (ej: M30-39)
+
+  // Relaciones
+  activityId      String?     @unique @map("activity_id") // Actividad de Strava vinculada
+  activity        Activity?   @relation(fields: [activityId], references: [id])
+  trainingPlanId  String?     @map("training_plan_id") // Plan de preparación
+  trainingPlan    TrainingPlan? @relation("RaceTrainingPlan", fields: [trainingPlanId], references: [id])
+
+  // Notas y feedback
+  notes           String?
+  coachFeedback   String?     @map("coach_feedback")
+
+  // Media
+  photoUrl        String?     @map("photo_url")
+  medalUrl        String?     @map("medal_url")
+
+  // Notificaciones automáticas
+  notified30Days  Boolean     @default(false) @map("notified_30_days")
+  notified14Days  Boolean     @default(false) @map("notified_14_days")
+  notified7Days   Boolean     @default(false) @map("notified_7_days")
+  notified1Day    Boolean     @default(false) @map("notified_1_day")
+
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([userId, date])
+  @@index([date])
+  @@map("races")
 }
