@@ -42,6 +42,10 @@ import CoachStats from "./pages/CoachStats";
 // Activity pages
 import ActivityDetail from "./pages/ActivityDetail";
 
+// Goals and Stats pages
+import Goals from "./pages/Goals";
+import AthleteStats from "./pages/AthleteStats";
+
 const queryClient = new QueryClient();
 
 // Protected Route component
@@ -199,6 +203,16 @@ function AppRoutes() {
       <Route path="/settings/strava" element={
         <ProtectedRoute allowedRoles={['ATHLETE']}>
           <Settings />
+        </ProtectedRoute>
+      } />
+      <Route path="/goals" element={
+        <ProtectedRoute allowedRoles={['ATHLETE']}>
+          <Goals />
+        </ProtectedRoute>
+      } />
+      <Route path="/stats" element={
+        <ProtectedRoute allowedRoles={['ATHLETE']}>
+          <AthleteStats />
         </ProtectedRoute>
       } />
 

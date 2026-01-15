@@ -16,7 +16,9 @@ import {
   Award,
   Heart,
   MapPin,
-  Zap
+  Zap,
+  BarChart3,
+  Share2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { dashboardService } from '@/services/dashboard.service';
@@ -34,6 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { exportService } from '@/services/export.service';
 import type { Activity as ActivityType } from '@/types/activity';
 import { ACTIVITY_TYPE_LABELS } from '@/types/activity';
 
@@ -196,6 +199,16 @@ export default function AthleteDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Link to="/goals">
+                <Button variant="ghost" size="icon" title="Mis Metas">
+                  <Target className="w-5 h-5" />
+                </Button>
+              </Link>
+              <Link to="/stats">
+                <Button variant="ghost" size="icon" title="Mi Evolución">
+                  <BarChart3 className="w-5 h-5" />
+                </Button>
+              </Link>
               <NotificationBell />
               <Link to="/messages">
                 <Button variant="ghost" size="icon" className="relative">
@@ -339,7 +352,37 @@ export default function AthleteDashboard() {
           transition={{ delay: 0.2 }}
           className="glass rounded-xl p-6"
         >
-          <h3 className="font-display text-lg mb-4">ACTIVIDAD SEMANAL</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-lg">ACTIVIDAD SEMANAL</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                if (data && user) {
+                  try {
+                    await exportService.copyWeeklySummaryToClipboard(
+                      data.stats.weekly,
+                      data.recentActivities,
+                      user.name
+                    );
+                    toast({
+                      title: '¡Copiado!',
+                      description: 'Resumen semanal copiado al portapapeles',
+                    });
+                  } catch {
+                    toast({
+                      variant: 'destructive',
+                      title: 'Error',
+                      description: 'No se pudo copiar el resumen',
+                    });
+                  }
+                }
+              }}
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Compartir
+            </Button>
+          </div>
           <div className="flex items-end justify-between gap-2 h-32">
             {data?.stats.weeklyProgress.map((day, index) => (
               <div key={index} className="flex-1 flex flex-col items-center gap-2">

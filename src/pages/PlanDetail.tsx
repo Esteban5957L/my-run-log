@@ -25,9 +25,11 @@ import {
   Send,
   X,
   Loader2,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { planService, PlanResponse } from '@/services/plan.service';
+import { exportService } from '@/services/export.service';
 import { 
   TrainingPlan, 
   PlanSession,
@@ -454,6 +456,15 @@ export default function PlanDetail() {
                     <DropdownMenuItem onClick={openTemplateDialog}>
                       <FileText className="w-4 h-4 mr-2" />
                       Guardar como plantilla
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      if (plan) {
+                        exportService.downloadPlanAsText(plan, plan.sessions || []);
+                        toast({ title: 'Exportado', description: 'Plan descargado como archivo' });
+                      }
+                    }}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Exportar plan
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {plan.status === 'DRAFT' && (

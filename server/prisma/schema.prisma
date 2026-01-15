@@ -55,6 +55,9 @@ model User {
   // Notificaciones
   notifications Notification[]
 
+  // Metas
+  goals         Goal[]
+
   @@map("users")
 }
 
@@ -337,4 +340,68 @@ model Notification {
   @@index([userId, read])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+// ============================================
+// METAS Y OBJETIVOS
+// ============================================
+
+enum GoalType {
+  DISTANCE      // Correr X km
+  DURATION      // Entrenar X horas
+  WORKOUTS      // Completar X entrenamientos
+  ELEVATION     // Acumular X metros de desnivel
+  STREAK        // Mantener racha de X días
+}
+
+enum GoalPeriod {
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Goal {
+  id          String      @id @default(cuid())
+  
+  userId      String      @map("user_id")
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        GoalType
+  period      GoalPeriod
+  status      GoalStatus  @default(ACTIVE)
+  
+  title       String
+  description String?
+  
+  // Valor objetivo y progreso
+  targetValue Float       @map("target_value")
+  currentValue Float      @default(0) @map("current_value")
+  
+  // Período de la meta
+  startDate   DateTime    @map("start_date")
+  endDate     DateTime    @map("end_date")
+  
+  // Notificaciones
+  notifyAt50  Boolean     @default(true) @map("notify_at_50")
+  notifyAt75  Boolean     @default(true) @map("notify_at_75")
+  notifyAt100 Boolean     @default(true) @map("notify_at_100")
+  notified50  Boolean     @default(false) @map("notified_50")
+  notified75  Boolean     @default(false) @map("notified_75")
+  notified100 Boolean     @default(false) @map("notified_100")
+  
+  completedAt DateTime?   @map("completed_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([userId, endDate])
+  @@map("goals")
 }
