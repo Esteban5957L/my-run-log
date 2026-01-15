@@ -16,6 +16,8 @@ import stravaRoutes from './routes/strava.routes.js';
 import invitationRoutes from './routes/invitation.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import goalRoutes from './routes/goal.routes.js';
+import profileRoutes from './routes/profile.routes.js';
+import gearRoutes from './routes/gear.routes.js';
 
 // Socket
 import { setupSocket } from './socket/index.js';
@@ -67,6 +69,8 @@ app.use('/api/strava', stravaRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/goals', goalRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/gear', gearRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

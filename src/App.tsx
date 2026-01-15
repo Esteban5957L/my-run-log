@@ -46,6 +46,9 @@ import ActivityDetail from "./pages/ActivityDetail";
 import Goals from "./pages/Goals";
 import AthleteStats from "./pages/AthleteStats";
 
+// Profile page
+import Profile from "./pages/Profile";
+
 const queryClient = new QueryClient();
 
 // Protected Route component
@@ -213,6 +216,16 @@ function AppRoutes() {
       <Route path="/stats" element={
         <ProtectedRoute allowedRoles={['ATHLETE']}>
           <AthleteStats />
+        </ProtectedRoute>
+      } />
+      <Route path="/profile" element={
+        <ProtectedRoute allowedRoles={['ATHLETE', 'COACH']}>
+          <Profile />
+        </ProtectedRoute>
+      } />
+      <Route path="/gear" element={
+        <ProtectedRoute allowedRoles={['ATHLETE']}>
+          <GearView />
         </ProtectedRoute>
       } />
 

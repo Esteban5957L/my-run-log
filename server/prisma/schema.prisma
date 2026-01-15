@@ -30,6 +30,23 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  // Datos de perfil del atleta
+  birthDate     DateTime? @map("birth_date")
+  gender        String?   // MALE, FEMALE, OTHER
+  weight        Float?    // kg
+  height        Float?    // cm
+  bio           String?
+  location      String?
+  
+  // Zonas de FC personalizadas
+  hrZone1       Int?      @map("hr_zone_1") // Recuperación
+  hrZone2       Int?      @map("hr_zone_2") // Aeróbico
+  hrZone3       Int?      @map("hr_zone_3") // Tempo
+  hrZone4       Int?      @map("hr_zone_4") // Umbral
+  hrZone5       Int?      @map("hr_zone_5") // VO2max
+  hrMax         Int?      @map("hr_max")
+  hrRest        Int?      @map("hr_rest")
+
   // Relación Coach-Atleta
   coachId       String?   @map("coach_id")
   coach         User?     @relation("CoachAthletes", fields: [coachId], references: [id])
@@ -57,6 +74,9 @@ model User {
 
   // Metas
   goals         Goal[]
+
+  // Equipamiento
+  gear          Gear[]
 
   @@map("users")
 }
@@ -144,6 +164,9 @@ model Activity {
   // Relación con sesión planificada
   planSessionId   String?       @map("plan_session_id")
   planSession     PlanSession?  @relation(fields: [planSessionId], references: [id])
+  
+  // Equipamiento usado
+  gear            ActivityGear[]
   
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
@@ -404,4 +427,76 @@ model Goal {
   @@index([userId, status])
   @@index([userId, endDate])
   @@map("goals")
+}
+
+// ============================================
+// EQUIPAMIENTO (GEAR)
+// ============================================
+
+enum GearType {
+  SHOES       // Zapatillas
+  WATCH       // Reloj/GPS
+  HEART_RATE  // Banda de FC
+  CLOTHING    // Ropa
+  OTHER       // Otros
+}
+
+enum GearStatus {
+  ACTIVE      // En uso
+  RETIRED     // Retirado
+}
+
+model Gear {
+  id              String      @id @default(cuid())
+  
+  userId          String      @map("user_id")
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type            GearType
+  status          GearStatus  @default(ACTIVE)
+  
+  brand           String      // Marca (Nike, Garmin, etc.)
+  model           String      // Modelo
+  name            String?     // Nombre personalizado (ej: "Mis Pegasus azules")
+  
+  // Tracking de uso
+  totalDistance   Float       @default(0) @map("total_distance")  // metros
+  totalDuration   Int         @default(0) @map("total_duration")  // segundos
+  totalActivities Int         @default(0) @map("total_activities")
+  
+  // Límites y alertas
+  maxDistance     Float?      @map("max_distance")  // metros - alerta cuando se supere
+  
+  // Fechas
+  purchaseDate    DateTime?   @map("purchase_date")
+  retiredDate     DateTime?   @map("retired_date")
+  
+  notes           String?
+  imageUrl        String?     @map("image_url")
+  
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Relación con actividades
+  activities      ActivityGear[]
+
+  @@index([userId, status])
+  @@index([userId, type])
+  @@map("gear")
+}
+
+// Tabla intermedia para relacionar actividades con equipamiento
+model ActivityGear {
+  id          String    @id @default(cuid())
+  
+  activityId  String    @map("activity_id")
+  activity    Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  
+  gearId      String    @map("gear_id")
+  gear        Gear      @relation(fields: [gearId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([activityId, gearId])
+  @@map("activity_gear")
 }
