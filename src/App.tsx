@@ -37,6 +37,9 @@ import Plans from "./pages/Plans";
 import PlanForm from "./pages/PlanForm";
 import PlanDetail from "./pages/PlanDetail";
 
+// Activity pages
+import ActivityDetail from "./pages/ActivityDetail";
+
 const queryClient = new QueryClient();
 
 // Protected Route component
@@ -134,6 +137,11 @@ function AppRoutes() {
           <CalendarView />
         </ProtectedRoute>
       } />
+      <Route path="/coach/activity/:activityId" element={
+        <ProtectedRoute allowedRoles={['COACH']}>
+          <ActivityDetail />
+        </ProtectedRoute>
+      } />
 
       {/* Athlete routes */}
       <Route path="/" element={
@@ -144,6 +152,11 @@ function AppRoutes() {
       <Route path="/activities" element={
         <ProtectedRoute allowedRoles={['ATHLETE']}>
           <StatsView />
+        </ProtectedRoute>
+      } />
+      <Route path="/activity/:activityId" element={
+        <ProtectedRoute allowedRoles={['ATHLETE']}>
+          <ActivityDetail />
         </ProtectedRoute>
       } />
       <Route path="/log" element={

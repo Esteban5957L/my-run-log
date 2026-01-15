@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import type { Activity as ActivityType } from '@/types/activity';
 import { ACTIVITY_TYPE_LABELS } from '@/types/activity';
 
@@ -195,6 +196,7 @@ export default function AthleteDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <Link to="/messages">
                 <Button variant="ghost" size="icon" className="relative">
                   <MessageSquare className="w-5 h-5" />
@@ -450,30 +452,31 @@ export default function AthleteDashboard() {
             {data?.recentActivities && data.recentActivities.length > 0 ? (
               <div className="space-y-3">
                 {data.recentActivities.map((activity, index) => (
-                  <motion.div
-                    key={activity.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 + index * 0.05 }}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-gradient-trail flex items-center justify-center flex-shrink-0">
-                      <Activity className="w-5 h-5 text-primary-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-foreground truncate">{activity.name}</h4>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{formatDate(activity.date)}</span>
-                        <span>•</span>
-                        <span>{formatDistance(activity.distance)}</span>
-                        <span>•</span>
-                        <span>{formatDuration(activity.duration)}</span>
+                  <Link to={`/activity/${activity.id}`} key={activity.id}>
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.5 + index * 0.05 }}
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-gradient-trail flex items-center justify-center flex-shrink-0">
+                        <Activity className="w-5 h-5 text-primary-foreground" />
                       </div>
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {ACTIVITY_TYPE_LABELS[activity.activityType] || activity.activityType}
-                    </Badge>
-                  </motion.div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-foreground truncate">{activity.name}</h4>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{formatDate(activity.date)}</span>
+                          <span>•</span>
+                          <span>{formatDistance(activity.distance)}</span>
+                          <span>•</span>
+                          <span>{formatDuration(activity.duration)}</span>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {ACTIVITY_TYPE_LABELS[activity.activityType] || activity.activityType}
+                      </Badge>
+                    </motion.div>
+                  </Link>
                 ))}
               </div>
             ) : (

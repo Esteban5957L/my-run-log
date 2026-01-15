@@ -146,3 +146,8 @@ export function useChat() {
   }
   return context;
 }
+
+// Hook para acceder al socket directamente (para notificaciones)
+export function useSocket() {
+  return socketService.getSocket();
+}

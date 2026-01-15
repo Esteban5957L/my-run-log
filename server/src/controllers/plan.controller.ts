@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../config/database.js';
 import { SessionType, PlanStatus } from '@prisma/client';
+import { notifyPlanAssigned, notifySessionCompleted, notifySessionSkipped, notifyCoachFeedback } from './notification.controller.js';
+import { io } from '../index.js';
 
 // Helper para obtener parámetros de forma segura
 const getParam = (value: unknown): string | undefined => {
@@ -211,6 +213,13 @@ export async function createPlan(req: Request, res: Response) {
       }
     });
 
+    // Notificar al atleta que se le asignó un plan
+    const notification = await notifyPlanAssigned(athleteId, plan.id, name, req.user.userId);
+    if (notification) {
+      // Emitir notificación en tiempo real via Socket.io
+      io.to(`user:${athleteId}`).emit('notification', notification);
+    }
+
     res.status(201).json({ plan });
   } catch (error) {
     console.error('Create plan error:', error);
@@ -367,6 +376,9 @@ export async function updateSessionStatus(req: Request, res: Response) {
       return res.status(403).json({ error: 'No tienes permisos para actualizar esta sesión' });
     }
 
+    const wasCompleted = session.completed;
+    const wasSkipped = session.skipped;
+
     const updated = await prisma.planSession.update({
       where: { id: sessionId },
       data: { 
@@ -375,6 +387,33 @@ export async function updateSessionStatus(req: Request, res: Response) {
         completedAt: completed ? new Date() : null,
       }
     });
+
+    // Notificar al coach si el atleta completó o saltó la sesión
+    if (req.user.role === 'ATHLETE' && session.plan.coachId && session.plan.athleteId) {
+      if (completed && !wasCompleted) {
+        const notification = await notifySessionCompleted(
+          session.plan.coachId, 
+          session.plan.athleteId, 
+          session.title, 
+          session.plan.id, 
+          sessionId
+        );
+        if (notification) {
+          io.to(`user:${session.plan.coachId}`).emit('notification', notification);
+        }
+      } else if (skipped && !wasSkipped) {
+        const notification = await notifySessionSkipped(
+          session.plan.coachId, 
+          session.plan.athleteId, 
+          session.title, 
+          session.plan.id, 
+          sessionId
+        );
+        if (notification) {
+          io.to(`user:${session.plan.coachId}`).emit('notification', notification);
+        }
+      }
+    }
 
     res.json({ session: updated });
   } catch (error) {
@@ -406,6 +445,8 @@ export async function addSessionFeedback(req: Request, res: Response) {
       return res.status(404).json({ error: 'Sesión no encontrada' });
     }
 
+    const hadFeedback = !!session.coachFeedback;
+
     const updated = await prisma.planSession.update({
       where: { id: sessionId },
       data: { 
@@ -413,6 +454,20 @@ export async function addSessionFeedback(req: Request, res: Response) {
         coachFeedback: coachFeedback !== undefined ? coachFeedback : session.coachFeedback,
       }
     });
+
+    // Notificar al atleta si se agregó feedback (no solo notas internas)
+    if (coachFeedback && !hadFeedback && session.plan.athleteId) {
+      const notification = await notifyCoachFeedback(
+        session.plan.athleteId,
+        req.user.userId,
+        session.title,
+        session.plan.id,
+        sessionId
+      );
+      if (notification) {
+        io.to(`user:${session.plan.athleteId}`).emit('notification', notification);
+      }
+    }
 
     res.json({ session: updated });
   } catch (error) {

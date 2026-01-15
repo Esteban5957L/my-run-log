@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import type { Message } from '@/types/message';
+import type { Notification } from './notification.service';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
@@ -8,6 +9,7 @@ class SocketService {
   private messageHandlers: ((message: Message) => void)[] = [];
   private typingHandlers: ((data: { oderId: string; isTyping: boolean }) => void)[] = [];
   private readHandlers: ((data: { oderId: string; messageIds: string[] }) => void)[] = [];
+  private notificationHandlers: ((notification: Notification) => void)[] = [];
 
   connect(token: string): void {
     if (this.socket?.connected) return;
@@ -35,6 +37,11 @@ class SocketService {
 
     this.socket.on('messages_read', (data: { oderId: string; messageIds: string[] }) => {
       this.readHandlers.forEach(handler => handler(data));
+    });
+
+    this.socket.on('notification', (notification: Notification) => {
+      console.log('🔔 New notification:', notification);
+      this.notificationHandlers.forEach(handler => handler(notification));
     });
 
     this.socket.on('connect_error', (error) => {
@@ -88,8 +95,19 @@ class SocketService {
     };
   }
 
+  onNotification(handler: (notification: Notification) => void): () => void {
+    this.notificationHandlers.push(handler);
+    return () => {
+      this.notificationHandlers = this.notificationHandlers.filter(h => h !== handler);
+    };
+  }
+
   isConnected(): boolean {
     return this.socket?.connected ?? false;
+  }
+
+  getSocket(): Socket | null {
+    return this.socket;
   }
 }
 

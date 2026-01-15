@@ -36,6 +36,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import type { Athlete } from '@/types/athlete';
 
 function formatDistance(meters: number): string {
@@ -201,6 +202,7 @@ export default function CoachDashboard() {
               >
                 <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
               </Button>
+              <NotificationBell />
               <Button 
                 variant="ghost" 
                 size="icon" 

@@ -290,13 +290,13 @@ export default function AthleteDetail() {
                 </div>
               ) : (
                 recentActivities.map((activity: Activity, index: number) => (
-                  <motion.div
-                    key={activity.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="glass rounded-xl p-5 hover:bg-muted/50 transition-colors"
-                  >
+                  <Link to={`/coach/activity/${activity.id}`} key={activity.id}>
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="glass rounded-xl p-5 hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h4 className="font-display text-lg text-foreground">{activity.name}</h4>
@@ -357,7 +357,8 @@ export default function AthleteDetail() {
                         <p className="text-sm text-foreground">{activity.coachFeedback}</p>
                       </div>
                     )}
-                  </motion.div>
+                    </motion.div>
+                  </Link>
                 ))
               )}
             </motion.div>
