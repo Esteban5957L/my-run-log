@@ -72,6 +72,9 @@ export default function PlanDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
+  const isCoach = user?.role === 'COACH';
+  const basePath = isCoach ? '/coach/plans' : '/plans';
+
   useEffect(() => {
     if (planId) {
       loadPlan(planId);
@@ -240,8 +243,6 @@ export default function PlanDetail() {
     );
   }
 
-  const isCoach = user?.role === 'COACH';
-  const basePath = isCoach ? '/coach/plans' : '/plans';
   const weeks = groupSessionsByWeek(plan.sessions);
   const today = new Date();
   today.setHours(0, 0, 0, 0);

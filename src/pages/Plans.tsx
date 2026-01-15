@@ -72,6 +72,7 @@ export default function Plans() {
 
   const isCoach = user?.role === 'COACH';
   const basePath = isCoach ? '/coach/plans' : '/plans';
+  const homePath = isCoach ? '/coach' : '/';
 
   useEffect(() => {
     loadPlans();
@@ -163,7 +164,7 @@ export default function Plans() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <Button variant="ghost" size="icon" onClick={() => navigate(homePath)}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <RunnioLogo size="sm" />
