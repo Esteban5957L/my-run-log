@@ -99,11 +99,14 @@ export async function syncActivities(req: Request, res: Response) {
       return res.status(400).json({ error: 'Strava no está conectado' });
     }
 
-    const syncedCount = await stravaService.syncStravaActivities(req.user.userId);
+    const result = await stravaService.syncStravaActivities(req.user.userId);
 
     res.json({ 
-      message: `Sincronización completada`,
-      syncedActivities: syncedCount 
+      message: result.linked > 0 
+        ? `Sincronización completada. ${result.linked} actividades vinculadas con tu plan de entrenamiento.`
+        : `Sincronización completada`,
+      syncedActivities: result.synced,
+      linkedToPlans: result.linked
     });
   } catch (error) {
     console.error('Strava sync error:', error);

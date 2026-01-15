@@ -200,10 +200,11 @@ function mapStravaActivityType(stravaType: string): ActivityType {
   return typeMap[stravaType] || 'RUNNING';
 }
 
-export async function syncStravaActivities(userId: string): Promise<number> {
+export async function syncStravaActivities(userId: string): Promise<{ synced: number; linked: number }> {
   const activities = await fetchStravaActivities(userId, { perPage: 30 });
   
   let syncedCount = 0;
+  let linkedCount = 0;
 
   for (const stravaActivity of activities) {
     // Solo sincronizar actividades de running
@@ -221,14 +222,18 @@ export async function syncStravaActivities(userId: string): Promise<number> {
     // Calcular pace (segundos por km)
     const distanceKm = stravaActivity.distance / 1000;
     const avgPace = distanceKm > 0 ? stravaActivity.moving_time / distanceKm : 0;
+    const activityDate = new Date(stravaActivity.start_date);
 
-    await prisma.activity.create({
+    // Buscar una sesión del plan que coincida con esta actividad
+    const matchingSession = await findMatchingPlanSession(userId, activityDate, distanceKm);
+
+    const newActivity = await prisma.activity.create({
       data: {
         userId,
         stravaId: stravaActivity.id.toString(),
         name: stravaActivity.name,
         activityType: mapStravaActivityType(stravaActivity.type),
-        date: new Date(stravaActivity.start_date),
+        date: activityDate,
         distance: distanceKm,
         duration: stravaActivity.moving_time,
         elevationGain: Math.round(stravaActivity.total_elevation_gain),
@@ -240,13 +245,94 @@ export async function syncStravaActivities(userId: string): Promise<number> {
         startLng: stravaActivity.start_latlng?.[1],
         mapPolyline: stravaActivity.map?.summary_polyline,
         splits: stravaActivity.splits_metric ? JSON.stringify(stravaActivity.splits_metric) : undefined,
+        planSessionId: matchingSession?.id || null,
       }
     });
+
+    // Si encontramos una sesión que coincide, marcarla como completada
+    if (matchingSession) {
+      await prisma.planSession.update({
+        where: { id: matchingSession.id },
+        data: { completed: true }
+      });
+      linkedCount++;
+      console.log(`✅ Actividad "${stravaActivity.name}" vinculada con sesión "${matchingSession.title}"`);
+    }
 
     syncedCount++;
   }
 
-  return syncedCount;
+  return { synced: syncedCount, linked: linkedCount };
+}
+
+/**
+ * Busca una sesión del plan que coincida con la actividad de Strava
+ * Criterios de matching:
+ * 1. La sesión debe ser del mismo día (±1 día de tolerancia)
+ * 2. La sesión no debe estar ya completada
+ * 3. El tipo de sesión debe ser compatible (no REST)
+ * 4. La distancia debe ser similar (±30% de tolerancia)
+ */
+async function findMatchingPlanSession(
+  userId: string, 
+  activityDate: Date, 
+  activityDistanceKm: number
+) {
+  // Buscar planes activos del usuario
+  const activePlans = await prisma.trainingPlan.findMany({
+    where: {
+      athleteId: userId,
+      status: 'ACTIVE',
+    },
+    include: {
+      sessions: {
+        where: {
+          completed: false,
+          skipped: false,
+          sessionType: { not: 'REST' },
+        }
+      }
+    }
+  });
+
+  // Crear rango de fechas (±1 día)
+  const dayStart = new Date(activityDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(activityDate);
+  dayEnd.setHours(23, 59, 59, 999);
+  
+  // También considerar el día anterior (por si la actividad fue tarde en la noche)
+  const prevDayStart = new Date(dayStart);
+  prevDayStart.setDate(prevDayStart.getDate() - 1);
+
+  for (const plan of activePlans) {
+    for (const session of plan.sessions) {
+      const sessionDate = new Date(session.date);
+      sessionDate.setHours(0, 0, 0, 0);
+
+      // Verificar si la fecha coincide (mismo día o día anterior)
+      const sameDay = sessionDate >= dayStart && sessionDate <= dayEnd;
+      const prevDay = sessionDate >= prevDayStart && sessionDate < dayStart;
+      
+      if (!sameDay && !prevDay) continue;
+
+      // Verificar distancia si la sesión tiene objetivo de distancia
+      if (session.targetDistance) {
+        const tolerance = session.targetDistance * 0.3; // 30% de tolerancia
+        const minDistance = session.targetDistance - tolerance;
+        const maxDistance = session.targetDistance + tolerance;
+        
+        if (activityDistanceKm < minDistance || activityDistanceKm > maxDistance) {
+          continue;
+        }
+      }
+
+      // Encontramos una sesión que coincide
+      return session;
+    }
+  }
+
+  return null;
 }
 
 export async function disconnectStrava(userId: string): Promise<void> {
