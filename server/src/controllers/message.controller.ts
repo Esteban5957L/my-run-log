@@ -155,19 +155,34 @@ export async function getMessages(req: Request, res: Response) {
         sender: {
           select: { id: true, name: true, avatar: true }
         },
-        activity: {
-          select: {
-            id: true,
-            name: true,
-            activityType: true,
-            date: true,
-            distance: true,
-            duration: true,
-            avgPace: true,
-          }
-        }
       }
     });
+
+    // Cargar actividades si existen activityIds
+    const messagesWithActivities = await Promise.all(
+      messages.map(async (msg) => {
+        if (msg.activityId) {
+          try {
+            const activity = await prisma.activity.findUnique({
+              where: { id: msg.activityId },
+              select: {
+                id: true,
+                name: true,
+                activityType: true,
+                date: true,
+                distance: true,
+                duration: true,
+                avgPace: true,
+              }
+            });
+            return { ...msg, activity };
+          } catch {
+            return { ...msg, activity: null };
+          }
+        }
+        return { ...msg, activity: null };
+      })
+    );
 
     // Marcar como leídos los mensajes recibidos
     await prisma.message.updateMany({
@@ -179,7 +194,7 @@ export async function getMessages(req: Request, res: Response) {
       data: { readAt: new Date() }
     });
 
-    res.json({ messages: messages.reverse() });
+    res.json({ messages: messagesWithActivities.reverse() });
   } catch (error) {
     console.error('Get messages error:', error);
     res.status(500).json({ error: 'Error al obtener mensajes' });
@@ -247,7 +262,15 @@ export async function sendMessage(req: Request, res: Response) {
         sender: {
           select: { id: true, name: true, avatar: true }
         },
-        activity: {
+      }
+    });
+
+    // Cargar actividad si existe
+    let activity = null;
+    if (activityId) {
+      try {
+        activity = await prisma.activity.findUnique({
+          where: { id: activityId },
           select: {
             id: true,
             name: true,
@@ -257,11 +280,13 @@ export async function sendMessage(req: Request, res: Response) {
             duration: true,
             avgPace: true,
           }
-        }
+        });
+      } catch {
+        // Ignorar error si la actividad no existe
       }
-    });
+    }
 
-    res.status(201).json({ message });
+    res.status(201).json({ message: { ...message, activity } });
   } catch (error) {
     console.error('Send message error:', error);
     res.status(500).json({ error: 'Error al enviar mensaje' });
@@ -352,7 +377,15 @@ export async function addReaction(req: Request, res: Response) {
       data: { reactions },
       include: {
         sender: { select: { id: true, name: true, avatar: true } },
-        activity: {
+      }
+    });
+
+    // Cargar actividad si existe
+    let activity = null;
+    if (updated.activityId) {
+      try {
+        activity = await prisma.activity.findUnique({
+          where: { id: updated.activityId },
           select: {
             id: true,
             name: true,
@@ -362,11 +395,13 @@ export async function addReaction(req: Request, res: Response) {
             duration: true,
             avgPace: true,
           }
-        }
+        });
+      } catch {
+        // Ignorar error
       }
-    });
+    }
 
-    res.json({ message: updated });
+    res.json({ message: { ...updated, activity } });
   } catch (error) {
     console.error('Add reaction error:', error);
     res.status(500).json({ error: 'Error al agregar reacción' });
