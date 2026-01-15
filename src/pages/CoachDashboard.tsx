@@ -16,7 +16,9 @@ import {
   RefreshCw,
   LogOut,
   Calendar,
-  ClipboardList
+  ClipboardList,
+  FileText,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { athleteService } from '@/services/athlete.service';
@@ -159,8 +161,16 @@ export default function CoachDashboard() {
     { distance: 0, duration: 0, elevation: 0, workouts: 0 }
   );
 
+  const INACTIVITY_THRESHOLD_DAYS = 7; // Umbral configurable
+  
   const inactiveAthletes = athletes.filter(
-    a => a.daysSinceLastActivity !== null && a.daysSinceLastActivity > 7
+    a => a.daysSinceLastActivity !== null && a.daysSinceLastActivity > INACTIVITY_THRESHOLD_DAYS
+  ).sort((a, b) => (b.daysSinceLastActivity || 0) - (a.daysSinceLastActivity || 0));
+  
+  const warningAthletes = athletes.filter(
+    a => a.daysSinceLastActivity !== null && 
+         a.daysSinceLastActivity >= 4 && 
+         a.daysSinceLastActivity <= INACTIVITY_THRESHOLD_DAYS
   );
 
   return (
@@ -192,6 +202,22 @@ export default function CoachDashboard() {
                 title="Planes de Entrenamiento"
               >
                 <ClipboardList className="w-5 h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate('/coach/templates')}
+                title="Plantillas"
+              >
+                <FileText className="w-5 h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate('/coach/stats')}
+                title="Estadísticas Comparativas"
+              >
+                <BarChart3 className="w-5 h-5" />
               </Button>
               <Button 
                 variant="ghost" 
@@ -296,25 +322,64 @@ export default function CoachDashboard() {
           </div>
         </motion.div>
 
-        {/* Alerts */}
-        {inactiveAthletes.length > 0 && (
+        {/* Alerts Section */}
+        {(inactiveAthletes.length > 0 || warningAthletes.length > 0) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="mb-8 p-4 rounded-xl bg-destructive/10 border border-destructive/20"
+            className="mb-8 space-y-3"
           >
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-destructive" />
-              <div>
-                <p className="font-medium text-destructive">
-                  {inactiveAthletes.length} atleta{inactiveAthletes.length > 1 ? 's' : ''} sin actividad en más de 7 días
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {inactiveAthletes.map(a => a.name).join(', ')}
-                </p>
+            {inactiveAthletes.length > 0 && (
+              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-destructive mb-2">
+                      {inactiveAthletes.length} atleta{inactiveAthletes.length > 1 ? 's' : ''} sin actividad en más de {INACTIVITY_THRESHOLD_DAYS} días
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {inactiveAthletes.map(athlete => (
+                        <Link 
+                          key={athlete.id} 
+                          to={`/coach/athlete/${athlete.id}`}
+                          className="flex items-center gap-2 p-2 rounded-lg bg-background/50 hover:bg-background transition-colors"
+                        >
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage src={athlete.avatar || undefined} />
+                            <AvatarFallback className="text-xs bg-destructive/20">
+                              {getInitials(athlete.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{athlete.name}</p>
+                            <p className="text-xs text-destructive">
+                              {athlete.daysSinceLastActivity} días sin entrenar
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+            
+            {warningAthletes.length > 0 && (
+              <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-500" />
+                  <div>
+                    <p className="font-medium text-yellow-600 dark:text-yellow-400">
+                      {warningAthletes.length} atleta{warningAthletes.length > 1 ? 's' : ''} con poca actividad reciente
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {warningAthletes.map(a => `${a.name} (${a.daysSinceLastActivity}d)`).join(', ')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -465,9 +530,9 @@ export default function CoachDashboard() {
                                 Strava
                               </Badge>
                             )}
-                            {athlete.daysSinceLastActivity !== null && athlete.daysSinceLastActivity > 7 && (
+                            {athlete.daysSinceLastActivity !== null && athlete.daysSinceLastActivity > INACTIVITY_THRESHOLD_DAYS && (
                               <Badge variant="destructive" className="text-xs">
-                                Inactivo
+                                {athlete.daysSinceLastActivity}d inactivo
                               </Badge>
                             )}
                           </div>

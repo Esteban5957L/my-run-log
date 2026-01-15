@@ -41,6 +41,14 @@ export const activityService = {
   },
 
   async addCoachFeedback(activityId: string, feedback: string): Promise<{ activity: Activity }> {
-    return api.post<{ activity: Activity }>(`/activities/${activityId}/feedback`, { feedback });
+    return api.patch<{ activity: Activity }>(`/activities/${activityId}/feedback`, { coachFeedback: feedback });
+  },
+
+  async getMyActivities(limit = 10): Promise<{ activities: Activity[] }> {
+    return api.get<{ activities: Activity[] }>(`/activities?limit=${limit}`);
+  },
+
+  async getAthleteActivities(athleteId: string, limit = 10): Promise<{ activities: Activity[] }> {
+    return api.get<{ activities: Activity[] }>(`/activities?userId=${athleteId}&limit=${limit}`);
   },
 };

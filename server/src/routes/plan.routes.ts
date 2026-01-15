@@ -11,6 +11,9 @@ router.get('/calendar', planController.getCalendarSessions);
 
 // Plantillas
 router.get('/templates', planController.getTemplates);
+router.get('/templates/:templateId', planController.getTemplate);
+router.put('/templates/:templateId', planController.updateTemplate);
+router.delete('/templates/:templateId', planController.deleteTemplate);
 router.post('/templates/:templateId/create-plan', planController.createPlanFromTemplate);
 
 // Planes

@@ -8,18 +8,40 @@ import {
   Check, 
   CheckCheck,
   Loader2,
-  Circle
+  Circle,
+  Image,
+  Activity,
+  X,
+  Smile,
+  TrendingUp,
+  Clock,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
 import { messageService } from '@/services/message.service';
 import { athleteService } from '@/services/athlete.service';
+import { activityService } from '@/services/activity.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import type { Message } from '@/types/message';
+import type { Message, MessageActivity } from '@/types/message';
+import type { Activity as ActivityType } from '@/types/activity';
+
+const REACTION_EMOJIS = ['👍', '🔥', '💪', '❤️', '👏', '🎉'];
 
 function getInitials(name: string): string {
   return name
@@ -90,10 +112,23 @@ export default function Chat() {
   const [oderUser, setOderUser] = useState<{ id: string; name: string; avatar?: string | null } | null>(null);
   const [isOderTyping, setIsOderTyping] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  
+  // Activity sharing
+  const [showActivityPicker, setShowActivityPicker] = useState(false);
+  const [activities, setActivities] = useState<ActivityType[]>([]);
+  const [isLoadingActivities, setIsLoadingActivities] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(null);
+  
+  // Image upload (placeholder - would need actual upload service)
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  
+  // Reactions
+  const [activeReactionMessage, setActiveReactionMessage] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -195,7 +230,7 @@ export default function Chat() {
   }, [oderId, onTyping]);
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !oderId || isSending) return;
+    if ((!newMessage.trim() && !selectedActivity && !attachmentPreview) || !oderId || isSending) return;
 
     const content = newMessage.trim();
     setNewMessage('');
@@ -203,7 +238,17 @@ export default function Chat() {
 
     try {
       // Send via API for persistence (this is the source of truth)
-      const { message } = await messageService.sendMessage(oderId, content);
+      const { message } = await messageService.sendMessage({
+        receiverId: oderId,
+        content: content || undefined,
+        activityId: selectedActivity?.id,
+        attachmentUrl: attachmentPreview || undefined,
+        attachmentType: attachmentPreview ? 'image' : undefined,
+      });
+      
+      // Clear attachments
+      setSelectedActivity(null);
+      setAttachmentPreview(null);
       
       // Add to local state
       setMessages(prev => {
@@ -225,6 +270,52 @@ export default function Chat() {
       setIsSending(false);
       inputRef.current?.focus();
     }
+  };
+
+  const loadActivities = async () => {
+    if (!oderId) return;
+    setIsLoadingActivities(true);
+    try {
+      // If coach, load athlete's activities; if athlete, load own activities
+      const response = user?.role === 'COACH' 
+        ? await activityService.getAthleteActivities(oderId, 10)
+        : await activityService.getMyActivities(10);
+      setActivities(response.activities);
+    } catch (error) {
+      console.error('Error loading activities:', error);
+    } finally {
+      setIsLoadingActivities(false);
+    }
+  };
+
+  const handleActivitySelect = (activity: ActivityType) => {
+    setSelectedActivity(activity);
+    setShowActivityPicker(false);
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    try {
+      const { message: updatedMessage } = await messageService.addReaction(messageId, emoji);
+      setMessages(prev => prev.map(m => m.id === messageId ? updatedMessage : m));
+      setActiveReactionMessage(null);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo agregar la reacción',
+      });
+    }
+  };
+
+  const formatDistance = (meters: number) => {
+    return (meters / 1000).toFixed(1) + ' km';
+  };
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -336,7 +427,7 @@ export default function Chat() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.2 }}
-                          className={`flex items-end gap-2 ${isFromMe ? 'justify-end' : 'justify-start'}`}
+                          className={`flex items-end gap-2 group relative ${isFromMe ? 'justify-end' : 'justify-start'}`}
                         >
                           {!isFromMe && (
                             <div className="w-8">
@@ -352,27 +443,111 @@ export default function Chat() {
                           )}
                           
                           <div
-                            className={`max-w-[75%] px-4 py-2 rounded-2xl ${
+                            className={`max-w-[75%] rounded-2xl ${
                               isFromMe
                                 ? 'bg-primary text-primary-foreground rounded-br-md'
                                 : 'bg-muted text-foreground rounded-bl-md'
                             }`}
                           >
-                            <p className="text-sm whitespace-pre-wrap break-words">
-                              {message.content}
-                            </p>
-                            <div className={`flex items-center gap-1 mt-1 ${isFromMe ? 'justify-end' : ''}`}>
-                              <span className={`text-[10px] ${isFromMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                {formatTime(message.sentAt)}
-                              </span>
-                              {isFromMe && (
-                                message.readAt ? (
-                                  <CheckCheck className="w-3 h-3 text-primary-foreground/70" />
-                                ) : (
-                                  <Check className="w-3 h-3 text-primary-foreground/70" />
-                                )
+                            {/* Shared Activity */}
+                            {message.activity && (
+                              <Link 
+                                to={user?.role === 'COACH' ? `/coach/activity/${message.activity.id}` : `/activity/${message.activity.id}`}
+                                className="block p-3 border-b border-border/20"
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Activity className="w-4 h-4" />
+                                  <span className="text-xs font-medium">Actividad compartida</span>
+                                </div>
+                                <p className="font-medium text-sm mb-1">{message.activity.name}</p>
+                                <div className="flex items-center gap-3 text-xs opacity-80">
+                                  <span className="flex items-center gap-1">
+                                    <TrendingUp className="w-3 h-3" />
+                                    {formatDistance(message.activity.distance)}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatDuration(message.activity.duration)}
+                                  </span>
+                                </div>
+                              </Link>
+                            )}
+                            
+                            {/* Attachment */}
+                            {message.attachmentUrl && message.attachmentType === 'image' && (
+                              <div className="p-2">
+                                <img 
+                                  src={message.attachmentUrl} 
+                                  alt="Imagen compartida" 
+                                  className="rounded-lg max-w-full max-h-64 object-cover"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Text content */}
+                            {message.content && (
+                              <div className="px-4 py-2">
+                                <p className="text-sm whitespace-pre-wrap break-words">
+                                  {message.content}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {/* Footer with time and reactions */}
+                            <div className={`px-4 pb-2 flex items-center gap-2 ${isFromMe ? 'justify-end' : 'justify-between'}`}>
+                              <div className="flex items-center gap-1">
+                                <span className={`text-[10px] ${isFromMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                  {formatTime(message.sentAt)}
+                                </span>
+                                {isFromMe && (
+                                  message.readAt ? (
+                                    <CheckCheck className="w-3 h-3 text-primary-foreground/70" />
+                                  ) : (
+                                    <Check className="w-3 h-3 text-primary-foreground/70" />
+                                  )
+                                )}
+                              </div>
+                              
+                              {/* Reactions display */}
+                              {message.reactions && message.reactions.length > 0 && (
+                                <div className="flex items-center gap-0.5">
+                                  {message.reactions.map((reaction, i) => (
+                                    <span key={i} className="text-xs">{reaction.emoji}</span>
+                                  ))}
+                                </div>
                               )}
                             </div>
+                            
+                            {/* Reaction button (on hover) */}
+                            <Popover 
+                              open={activeReactionMessage === message.id} 
+                              onOpenChange={(open) => setActiveReactionMessage(open ? message.id : null)}
+                            >
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={`absolute -bottom-2 ${isFromMe ? 'left-0' : 'right-0'} w-6 h-6 rounded-full bg-background border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity`}
+                                >
+                                  <Smile className="w-3 h-3" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-1" side="top">
+                                <div className="flex gap-1">
+                                  {REACTION_EMOJIS.map((emoji) => (
+                                    <Button
+                                      key={emoji}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="w-8 h-8 text-lg hover:bg-muted"
+                                      onClick={() => handleReaction(message.id, emoji)}
+                                    >
+                                      {emoji}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         </motion.div>
                       );
@@ -414,7 +589,38 @@ export default function Chat() {
       {/* Input */}
       <div className="border-t border-border bg-card/50 backdrop-blur-sm p-4">
         <div className="container mx-auto max-w-2xl">
-          <div className="flex items-center gap-3">
+          {/* Selected activity preview */}
+          {selectedActivity && (
+            <div className="mb-3 p-3 bg-muted rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">{selectedActivity.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDistance(selectedActivity.distance)} • {formatDuration(selectedActivity.duration)}
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedActivity(null)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-2">
+            {/* Activity picker button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setShowActivityPicker(true);
+                loadActivities();
+              }}
+              title="Compartir actividad"
+            >
+              <Activity className="w-5 h-5" />
+            </Button>
+            
             <Input
               ref={inputRef}
               placeholder="Escribe un mensaje..."
@@ -428,7 +634,7 @@ export default function Chat() {
               variant="hero"
               size="icon"
               onClick={handleSend}
-              disabled={!newMessage.trim() || isSending}
+              disabled={(!newMessage.trim() && !selectedActivity) || isSending}
             >
               {isSending ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -439,6 +645,53 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      {/* Activity Picker Dialog */}
+      <Dialog open={showActivityPicker} onOpenChange={setShowActivityPicker}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Compartir Actividad</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[400px] overflow-y-auto">
+            {isLoadingActivities ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : activities.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No hay actividades para compartir</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {activities.map((activity) => (
+                  <button
+                    key={activity.id}
+                    onClick={() => handleActivitySelect(activity)}
+                    className="w-full p-3 text-left rounded-lg hover:bg-muted transition-colors border border-border"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{activity.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(activity.date).toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{formatDistance(activity.distance)}</p>
+                        <p className="text-xs text-muted-foreground">{formatDuration(activity.duration)}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -749,6 +749,107 @@ export async function createPlanFromTemplate(req: Request, res: Response) {
   }
 }
 
+// Obtener una plantilla específica
+export async function getTemplate(req: Request, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'COACH') {
+      return res.status(403).json({ error: 'Solo los entrenadores pueden ver plantillas' });
+    }
+
+    const templateId = getParam(req.params.templateId);
+    if (!templateId) {
+      return res.status(400).json({ error: 'templateId es requerido' });
+    }
+
+    const template = await prisma.trainingPlan.findUnique({
+      where: { id: templateId },
+      include: {
+        sessions: { orderBy: { dayOffset: 'asc' } }
+      }
+    });
+
+    if (!template || template.coachId !== req.user.userId || !template.isTemplate) {
+      return res.status(404).json({ error: 'Plantilla no encontrada' });
+    }
+
+    res.json({ template });
+  } catch (error) {
+    console.error('Get template error:', error);
+    res.status(500).json({ error: 'Error al obtener plantilla' });
+  }
+}
+
+// Actualizar una plantilla
+export async function updateTemplate(req: Request, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'COACH') {
+      return res.status(403).json({ error: 'Solo los entrenadores pueden editar plantillas' });
+    }
+
+    const templateId = getParam(req.params.templateId);
+    if (!templateId) {
+      return res.status(400).json({ error: 'templateId es requerido' });
+    }
+
+    const { name, description } = req.body;
+
+    const template = await prisma.trainingPlan.findUnique({
+      where: { id: templateId }
+    });
+
+    if (!template || template.coachId !== req.user.userId || !template.isTemplate) {
+      return res.status(404).json({ error: 'Plantilla no encontrada' });
+    }
+
+    const updated = await prisma.trainingPlan.update({
+      where: { id: templateId },
+      data: {
+        name: name || template.name,
+        description: description !== undefined ? description : template.description,
+      },
+      include: {
+        sessions: { orderBy: { dayOffset: 'asc' } }
+      }
+    });
+
+    res.json({ template: updated });
+  } catch (error) {
+    console.error('Update template error:', error);
+    res.status(500).json({ error: 'Error al actualizar plantilla' });
+  }
+}
+
+// Eliminar una plantilla
+export async function deleteTemplate(req: Request, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'COACH') {
+      return res.status(403).json({ error: 'Solo los entrenadores pueden eliminar plantillas' });
+    }
+
+    const templateId = getParam(req.params.templateId);
+    if (!templateId) {
+      return res.status(400).json({ error: 'templateId es requerido' });
+    }
+
+    const template = await prisma.trainingPlan.findUnique({
+      where: { id: templateId }
+    });
+
+    if (!template || template.coachId !== req.user.userId || !template.isTemplate) {
+      return res.status(404).json({ error: 'Plantilla no encontrada' });
+    }
+
+    await prisma.trainingPlan.delete({
+      where: { id: templateId }
+    });
+
+    res.json({ message: 'Plantilla eliminada' });
+  } catch (error) {
+    console.error('Delete template error:', error);
+    res.status(500).json({ error: 'Error al eliminar plantilla' });
+  }
+}
+
 // Obtener todas las sesiones para el calendario
 export async function getCalendarSessions(req: Request, res: Response) {
   try {

@@ -11,5 +11,6 @@ router.get('/unread/count', messageController.getUnreadCount);
 router.get('/:userId', messageController.getMessages);
 router.post('/', messageController.sendMessage);
 router.post('/:senderId/read', messageController.markAsRead);
+router.post('/:messageId/reaction', messageController.addReaction);
 
 export default router;

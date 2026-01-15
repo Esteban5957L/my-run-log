@@ -83,6 +83,21 @@ export const planService = {
     return api.get<TemplatesResponse>('/plans/templates');
   },
 
+  // Obtener una plantilla específica
+  async getTemplate(templateId: string): Promise<{ template: TrainingPlan }> {
+    return api.get<{ template: TrainingPlan }>(`/plans/templates/${templateId}`);
+  },
+
+  // Actualizar una plantilla
+  async updateTemplate(templateId: string, data: { name?: string; description?: string }): Promise<{ template: TrainingPlan }> {
+    return api.put<{ template: TrainingPlan }>(`/plans/templates/${templateId}`, data);
+  },
+
+  // Eliminar una plantilla
+  async deleteTemplate(templateId: string): Promise<void> {
+    await api.delete(`/plans/templates/${templateId}`);
+  },
+
   // Crear plan desde plantilla
   async createPlanFromTemplate(templateId: string, data: { athleteId: string; planName?: string; startDate: string }): Promise<{ plan: TrainingPlan }> {
     return api.post<{ plan: TrainingPlan }>(`/plans/templates/${templateId}/create-plan`, data);

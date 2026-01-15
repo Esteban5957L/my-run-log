@@ -11,8 +11,15 @@ const getParam = (value: unknown): string | undefined => {
 
 const sendMessageSchema = z.object({
   receiverId: z.string(),
-  content: z.string().min(1).max(2000),
+  content: z.string().max(2000),
   activityId: z.string().optional(),
+  attachmentUrl: z.string().url().optional(),
+  attachmentType: z.enum(['image', 'file']).optional(),
+  attachmentName: z.string().optional(),
+});
+
+const addReactionSchema = z.object({
+  emoji: z.string().min(1).max(4),
 });
 
 // Obtener conversaciones
@@ -147,6 +154,17 @@ export async function getMessages(req: Request, res: Response) {
       include: {
         sender: {
           select: { id: true, name: true, avatar: true }
+        },
+        activity: {
+          select: {
+            id: true,
+            name: true,
+            activityType: true,
+            date: true,
+            distance: true,
+            duration: true,
+            avgPace: true,
+          }
         }
       }
     });
@@ -184,7 +202,12 @@ export async function sendMessage(req: Request, res: Response) {
       });
     }
 
-    const { receiverId, content, activityId } = validation.data;
+    const { receiverId, content, activityId, attachmentUrl, attachmentType, attachmentName } = validation.data;
+
+    // Verificar que hay contenido o adjunto o actividad
+    if (!content && !attachmentUrl && !activityId) {
+      return res.status(400).json({ error: 'El mensaje debe tener contenido, adjunto o actividad' });
+    }
 
     // Verificar que puedo chatear con este usuario
     const receiver = await prisma.user.findUnique({
@@ -214,12 +237,26 @@ export async function sendMessage(req: Request, res: Response) {
       data: {
         senderId: req.user.userId,
         receiverId,
-        content,
+        content: content || '',
         activityId,
+        attachmentUrl,
+        attachmentType,
+        attachmentName,
       },
       include: {
         sender: {
           select: { id: true, name: true, avatar: true }
+        },
+        activity: {
+          select: {
+            id: true,
+            name: true,
+            activityType: true,
+            date: true,
+            distance: true,
+            duration: true,
+            avgPace: true,
+          }
         }
       }
     });
@@ -249,6 +286,90 @@ export async function getUnreadCount(req: Request, res: Response) {
   } catch (error) {
     console.error('Get unread count error:', error);
     res.status(500).json({ error: 'Error al obtener mensajes no leídos' });
+  }
+}
+
+// Agregar reacción a un mensaje
+export async function addReaction(req: Request, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const messageId = getParam(req.params.messageId);
+    if (!messageId) {
+      return res.status(400).json({ error: 'messageId es requerido' });
+    }
+
+    const validation = addReactionSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ error: 'Emoji inválido' });
+    }
+
+    const { emoji } = validation.data;
+
+    // Obtener el mensaje
+    const message = await prisma.message.findUnique({
+      where: { id: messageId }
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: 'Mensaje no encontrado' });
+    }
+
+    // Verificar que el usuario puede ver este mensaje
+    if (message.senderId !== req.user.userId && message.receiverId !== req.user.userId) {
+      return res.status(403).json({ error: 'No tienes acceso a este mensaje' });
+    }
+
+    // Obtener reacciones actuales
+    let reactions: Array<{ userId: string; emoji: string }> = [];
+    if (message.reactions) {
+      try {
+        reactions = message.reactions as Array<{ userId: string; emoji: string }>;
+      } catch {
+        reactions = [];
+      }
+    }
+
+    // Verificar si ya reaccionó con el mismo emoji
+    const existingIndex = reactions.findIndex(
+      r => r.userId === req.user!.userId && r.emoji === emoji
+    );
+
+    if (existingIndex >= 0) {
+      // Quitar la reacción (toggle)
+      reactions.splice(existingIndex, 1);
+    } else {
+      // Quitar cualquier reacción anterior del mismo usuario
+      reactions = reactions.filter(r => r.userId !== req.user!.userId);
+      // Agregar la nueva reacción
+      reactions.push({ userId: req.user.userId, emoji });
+    }
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: { reactions },
+      include: {
+        sender: { select: { id: true, name: true, avatar: true } },
+        activity: {
+          select: {
+            id: true,
+            name: true,
+            activityType: true,
+            date: true,
+            distance: true,
+            duration: true,
+            avgPace: true,
+          }
+        }
+      }
+    });
+
+    res.json({ message: updated });
+  } catch (error) {
+    console.error('Add reaction error:', error);
+    res.status(500).json({ error: 'Error al agregar reacción' });
   }
 }
 

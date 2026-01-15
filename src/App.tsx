@@ -36,6 +36,8 @@ import NotFound from "./pages/NotFound";
 import Plans from "./pages/Plans";
 import PlanForm from "./pages/PlanForm";
 import PlanDetail from "./pages/PlanDetail";
+import Templates from "./pages/Templates";
+import CoachStats from "./pages/CoachStats";
 
 // Activity pages
 import ActivityDetail from "./pages/ActivityDetail";
@@ -140,6 +142,16 @@ function AppRoutes() {
       <Route path="/coach/activity/:activityId" element={
         <ProtectedRoute allowedRoles={['COACH']}>
           <ActivityDetail />
+        </ProtectedRoute>
+      } />
+      <Route path="/coach/templates" element={
+        <ProtectedRoute allowedRoles={['COACH']}>
+          <Templates />
+        </ProtectedRoute>
+      } />
+      <Route path="/coach/stats" element={
+        <ProtectedRoute allowedRoles={['COACH']}>
+          <CoachStats />
         </ProtectedRoute>
       } />
 

@@ -142,6 +142,9 @@ model Activity {
   planSessionId   String?       @map("plan_session_id")
   planSession     PlanSession?  @relation(fields: [planSessionId], references: [id])
   
+  // Mensajes que comparten esta actividad
+  messages        Message[]
+  
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
@@ -259,6 +262,15 @@ model Message {
   
   // Para compartir actividades en el chat
   activityId  String?   @map("activity_id")
+  activity    Activity? @relation(fields: [activityId], references: [id])
+  
+  // Archivos/imágenes adjuntas
+  attachmentUrl   String?   @map("attachment_url")
+  attachmentType  String?   @map("attachment_type") // image, file
+  attachmentName  String?   @map("attachment_name")
+  
+  // Reacciones (JSON array de {userId, emoji})
+  reactions   Json?     @default("[]")
   
   sentAt      DateTime  @default(now()) @map("sent_at")
   readAt      DateTime? @map("read_at")
