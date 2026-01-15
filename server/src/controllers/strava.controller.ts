@@ -84,7 +84,7 @@ export async function handleCallback(req: Request, res: Response) {
   }
 }
 
-// Sincronizar actividades manualmente
+// Sincronizar actividades manualmente (para atletas)
 export async function syncActivities(req: Request, res: Response) {
   try {
     if (!req.user) {
@@ -110,6 +110,71 @@ export async function syncActivities(req: Request, res: Response) {
     });
   } catch (error) {
     console.error('Strava sync error:', error);
+    res.status(500).json({ error: 'Error al sincronizar actividades' });
+  }
+}
+
+// Sincronizar actividades de todos los atletas (solo para coaches)
+export async function syncAllAthletes(req: Request, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    if (req.user.role !== 'COACH') {
+      return res.status(403).json({ error: 'Solo los entrenadores pueden usar esta función' });
+    }
+
+    // Obtener todos los atletas del coach que tienen Strava conectado
+    const athletes = await prisma.user.findMany({
+      where: {
+        coachId: req.user.userId,
+        stravaToken: { isNot: null }
+      },
+      include: {
+        stravaToken: true
+      }
+    });
+
+    if (athletes.length === 0) {
+      return res.json({
+        message: 'No hay atletas con Strava conectado',
+        totalSynced: 0,
+        totalLinked: 0,
+        athletesSynced: 0
+      });
+    }
+
+    let totalSynced = 0;
+    let totalLinked = 0;
+    let athletesSynced = 0;
+    const errors: string[] = [];
+
+    for (const athlete of athletes) {
+      try {
+        const result = await stravaService.syncStravaActivities(athlete.id);
+        totalSynced += result.synced;
+        totalLinked += result.linked;
+        if (result.synced > 0) athletesSynced++;
+        console.log(`✅ Sincronizado ${athlete.name}: ${result.synced} actividades, ${result.linked} vinculadas`);
+      } catch (error) {
+        console.error(`Error sincronizando atleta ${athlete.name}:`, error);
+        errors.push(athlete.name);
+      }
+    }
+
+    res.json({
+      message: totalLinked > 0
+        ? `Sincronización completada. ${totalSynced} actividades nuevas, ${totalLinked} vinculadas a planes.`
+        : `Sincronización completada. ${totalSynced} actividades nuevas.`,
+      totalSynced,
+      totalLinked,
+      athletesSynced,
+      totalAthletes: athletes.length,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Sync all athletes error:', error);
     res.status(500).json({ error: 'Error al sincronizar actividades' });
   }
 }

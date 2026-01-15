@@ -9,6 +9,16 @@ interface StravaStatus {
 interface SyncResult {
   message: string;
   syncedActivities: number;
+  linkedToPlans?: number;
+}
+
+interface SyncAllResult {
+  message: string;
+  totalSynced: number;
+  totalLinked: number;
+  athletesSynced: number;
+  totalAthletes: number;
+  errors?: string[];
 }
 
 export const stravaService = {
@@ -22,6 +32,11 @@ export const stravaService = {
 
   async sync(): Promise<SyncResult> {
     return api.post<SyncResult>('/strava/sync');
+  },
+
+  // Sincronizar todos los atletas (solo para coaches)
+  async syncAllAthletes(): Promise<SyncAllResult> {
+    return api.post<SyncAllResult>('/strava/sync-all');
   },
 
   async disconnect(): Promise<{ message: string }> {

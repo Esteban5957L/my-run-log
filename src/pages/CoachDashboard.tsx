@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { athleteService } from '@/services/athlete.service';
 import { invitationService } from '@/services/invitation.service';
+import { stravaService } from '@/services/strava.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -71,6 +72,7 @@ export default function CoachDashboard() {
   const [inviteLink, setInviteLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [isCreatingInvite, setIsCreatingInvite] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     loadAthletes();
@@ -118,6 +120,29 @@ export default function CoachDashboard() {
     });
   };
 
+  const handleSyncAllAthletes = async () => {
+    try {
+      setIsSyncing(true);
+      const result = await stravaService.syncAllAthletes();
+      
+      toast({
+        title: '✅ Sincronización completada',
+        description: result.message,
+      });
+
+      // Recargar atletas para ver las estadísticas actualizadas
+      loadAthletes();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'No se pudieron sincronizar las actividades',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const filteredAthletes = athletes.filter(athlete =>
     athlete.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     athlete.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -158,6 +183,15 @@ export default function CoachDashboard() {
                 title="Planes de Entrenamiento"
               >
                 <ClipboardList className="w-5 h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleSyncAllAthletes}
+                disabled={isSyncing}
+                title="Sincronizar actividades de Strava"
+              >
+                <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
               </Button>
               <Button 
                 variant="ghost" 

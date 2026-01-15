@@ -10,6 +10,7 @@ router.get('/callback', stravaController.handleCallback);
 
 // Acciones autenticadas
 router.post('/sync', authenticate, stravaController.syncActivities);
+router.post('/sync-all', authenticate, stravaController.syncAllAthletes); // Para coaches
 router.delete('/disconnect', authenticate, stravaController.disconnect);
 router.get('/status', authenticate, stravaController.getStatus);
 
