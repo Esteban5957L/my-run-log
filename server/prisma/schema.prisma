@@ -163,14 +163,17 @@ model TrainingPlan {
   coachId     String      @map("coach_id")
   coach       User        @relation("CoachPlans", fields: [coachId], references: [id])
   
-  athleteId   String      @map("athlete_id")
-  athlete     User        @relation("AthletePlans", fields: [athleteId], references: [id])
+  athleteId   String?     @map("athlete_id")
+  athlete     User?       @relation("AthletePlans", fields: [athleteId], references: [id])
   
   name        String
   description String?
   startDate   DateTime    @map("start_date")
   endDate     DateTime    @map("end_date")
   status      PlanStatus  @default(DRAFT)
+  
+  // Para plantillas
+  isTemplate  Boolean     @default(false) @map("is_template")
   
   sessions    PlanSession[]
   
@@ -217,6 +220,14 @@ model PlanSession {
   // Estado
   completed       Boolean       @default(false)
   skipped         Boolean       @default(false)
+  completedAt     DateTime?     @map("completed_at")
+  
+  // Comentarios del coach
+  coachNotes      String?       @map("coach_notes")
+  coachFeedback   String?       @map("coach_feedback")
+  
+  // Para plantillas (día relativo: 0 = día 1 del plan, 1 = día 2, etc.)
+  dayOffset       Int?          @map("day_offset")
   
   // Actividad vinculada
   activities      Activity[]

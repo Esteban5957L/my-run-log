@@ -20,6 +20,24 @@ export interface PlanResponse {
   };
 }
 
+export interface TemplatesResponse {
+  templates: TrainingPlan[];
+}
+
+export interface CalendarSession extends PlanSession {
+  plan: {
+    id: string;
+    name: string;
+    status: string;
+    athlete: { id: string; name: string; avatar: string | null };
+  };
+}
+
+export interface CalendarResponse {
+  sessions: CalendarSession[];
+  sessionsByDate: Record<string, CalendarSession[]>;
+}
+
 export const planService = {
   // Obtener todos los planes (como coach o atleta)
   async getPlans(athleteId?: string, status?: string): Promise<PlansResponse> {
@@ -50,6 +68,36 @@ export const planService = {
     await api.delete(`/plans/${planId}`);
   },
 
+  // Duplicar plan a otro atleta
+  async duplicatePlan(planId: string, data: { targetAthleteId: string; newName?: string; startDate: string }): Promise<{ plan: TrainingPlan }> {
+    return api.post<{ plan: TrainingPlan }>(`/plans/${planId}/duplicate`, data);
+  },
+
+  // Crear plantilla desde un plan
+  async createTemplate(planId: string, templateName?: string): Promise<{ template: TrainingPlan }> {
+    return api.post<{ template: TrainingPlan }>(`/plans/${planId}/create-template`, { templateName });
+  },
+
+  // Obtener plantillas
+  async getTemplates(): Promise<TemplatesResponse> {
+    return api.get<TemplatesResponse>('/plans/templates');
+  },
+
+  // Crear plan desde plantilla
+  async createPlanFromTemplate(templateId: string, data: { athleteId: string; planName?: string; startDate: string }): Promise<{ plan: TrainingPlan }> {
+    return api.post<{ plan: TrainingPlan }>(`/plans/templates/${templateId}/create-plan`, data);
+  },
+
+  // Obtener sesiones para el calendario
+  async getCalendarSessions(startDate?: string, endDate?: string, athleteId?: string): Promise<CalendarResponse> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (athleteId) params.append('athleteId', athleteId);
+    
+    return api.get<CalendarResponse>(`/plans/calendar?${params.toString()}`);
+  },
+
   // Agregar una sesión a un plan
   async addSession(planId: string, data: CreateSessionData): Promise<{ session: PlanSession }> {
     return api.post<{ session: PlanSession }>(`/plans/${planId}/sessions`, data);
@@ -61,5 +109,13 @@ export const planService = {
     data: { completed?: boolean; skipped?: boolean }
   ): Promise<{ session: PlanSession }> {
     return api.patch<{ session: PlanSession }>(`/plans/sessions/${sessionId}`, data);
+  },
+
+  // Agregar feedback del coach a una sesión
+  async addSessionFeedback(
+    sessionId: string,
+    data: { coachNotes?: string; coachFeedback?: string }
+  ): Promise<{ session: PlanSession }> {
+    return api.patch<{ session: PlanSession }>(`/plans/sessions/${sessionId}/feedback`, data);
   },
 };

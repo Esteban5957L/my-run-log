@@ -19,6 +19,12 @@ import {
   Play,
   Pause,
   Trash2,
+  Copy,
+  FileText,
+  MessageSquare,
+  Send,
+  X,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { planService, PlanResponse } from '@/services/plan.service';
@@ -59,7 +65,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { RunnioLogo } from '@/components/ui/RunnioLogo';
+import { athleteService } from '@/services/athlete.service';
+import { Athlete } from '@/types/athlete';
 
 export default function PlanDetail() {
   const { planId } = useParams();
@@ -71,6 +97,26 @@ export default function PlanDetail() {
   const [stats, setStats] = useState<PlanResponse['stats'] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  
+  // Duplicar plan
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [duplicateTargetAthleteId, setDuplicateTargetAthleteId] = useState('');
+  const [duplicateStartDate, setDuplicateStartDate] = useState('');
+  const [duplicateNewName, setDuplicateNewName] = useState('');
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  
+  // Crear plantilla
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
+  
+  // Feedback de sesión
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<PlanSession | null>(null);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [notesText, setNotesText] = useState('');
+  const [isSavingFeedback, setIsSavingFeedback] = useState(false);
 
   const isCoach = user?.role === 'COACH';
   const basePath = isCoach ? '/coach/plans' : '/plans';
@@ -149,6 +195,126 @@ export default function PlanDetail() {
         title: 'Error',
         description: 'No se pudo actualizar el estado',
       });
+    }
+  };
+
+  // Cargar atletas para duplicar
+  const loadAthletes = async () => {
+    try {
+      const response = await athleteService.getMyAthletes();
+      setAthletes(response.athletes);
+    } catch (error) {
+      console.error('Error loading athletes:', error);
+    }
+  };
+
+  const openDuplicateDialog = () => {
+    loadAthletes();
+    setDuplicateNewName(plan?.name ? `${plan.name} (copia)` : '');
+    setDuplicateStartDate(new Date().toISOString().split('T')[0]);
+    setDuplicateTargetAthleteId('');
+    setDuplicateDialogOpen(true);
+  };
+
+  const handleDuplicatePlan = async () => {
+    if (!plan || !duplicateTargetAthleteId || !duplicateStartDate) return;
+    
+    setIsDuplicating(true);
+    try {
+      const result = await planService.duplicatePlan(plan.id, {
+        targetAthleteId: duplicateTargetAthleteId,
+        newName: duplicateNewName || undefined,
+        startDate: new Date(duplicateStartDate).toISOString(),
+      });
+      
+      toast({
+        title: 'Plan duplicado',
+        description: `El plan ha sido duplicado para ${result.plan.athlete?.name}`,
+      });
+      
+      setDuplicateDialogOpen(false);
+      navigate(`${basePath}/${result.plan.id}`);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo duplicar el plan',
+      });
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
+
+  const openTemplateDialog = () => {
+    setTemplateName(plan?.name ? `Plantilla: ${plan.name}` : '');
+    setTemplateDialogOpen(true);
+  };
+
+  const handleCreateTemplate = async () => {
+    if (!plan) return;
+    
+    setIsCreatingTemplate(true);
+    try {
+      await planService.createTemplate(plan.id, templateName || undefined);
+      
+      toast({
+        title: 'Plantilla creada',
+        description: 'La plantilla ha sido creada correctamente',
+      });
+      
+      setTemplateDialogOpen(false);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo crear la plantilla',
+      });
+    } finally {
+      setIsCreatingTemplate(false);
+    }
+  };
+
+  const openFeedbackDialog = (session: PlanSession) => {
+    setSelectedSession(session);
+    setFeedbackText(session.coachFeedback || '');
+    setNotesText(session.coachNotes || '');
+    setFeedbackDialogOpen(true);
+  };
+
+  const handleSaveFeedback = async () => {
+    if (!selectedSession) return;
+    
+    setIsSavingFeedback(true);
+    try {
+      await planService.addSessionFeedback(selectedSession.id, {
+        coachFeedback: feedbackText || undefined,
+        coachNotes: notesText || undefined,
+      });
+      
+      // Actualizar estado local
+      if (plan) {
+        const updatedSessions = plan.sessions.map(s => 
+          s.id === selectedSession.id 
+            ? { ...s, coachFeedback: feedbackText, coachNotes: notesText } 
+            : s
+        );
+        setPlan({ ...plan, sessions: updatedSessions });
+      }
+      
+      toast({
+        title: 'Feedback guardado',
+        description: 'El comentario ha sido guardado correctamente',
+      });
+      
+      setFeedbackDialogOpen(false);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo guardar el feedback',
+      });
+    } finally {
+      setIsSavingFeedback(false);
     }
   };
 
@@ -280,6 +446,14 @@ export default function PlanDetail() {
                     <DropdownMenuItem onClick={() => navigate(`${basePath}/${plan.id}/edit`)}>
                       <Edit className="w-4 h-4 mr-2" />
                       Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={openDuplicateDialog}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Duplicar a otro atleta
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={openTemplateDialog}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Guardar como plantilla
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {plan.status === 'DRAFT' && (
@@ -477,6 +651,19 @@ export default function PlanDetail() {
                             )}
                           </div>
 
+                          {/* Coach Feedback Button */}
+                          {isCoach && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openFeedbackDialog(session)}
+                              className={session.coachFeedback ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}
+                              title={session.coachFeedback ? 'Ver/editar feedback' : 'Agregar feedback'}
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </Button>
+                          )}
+
                           {/* Skip Button (for non-completed sessions) */}
                           {!session.completed && !session.skipped && isPast && (
                             <Button
@@ -495,6 +682,16 @@ export default function PlanDetail() {
                               <p className="text-muted-foreground">Realizado:</p>
                               <p className="font-medium">
                                 {session.activities[0].distance.toFixed(1)} km
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Coach Feedback Display (for athletes) */}
+                          {!isCoach && session.coachFeedback && (
+                            <div className="text-right text-xs max-w-[150px]">
+                              <p className="text-primary font-medium">💬 Coach:</p>
+                              <p className="text-muted-foreground line-clamp-2">
+                                {session.coachFeedback}
                               </p>
                             </div>
                           )}
@@ -548,6 +745,167 @@ export default function PlanDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Duplicate Plan Dialog */}
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicar Plan</DialogTitle>
+            <DialogDescription>
+              Duplica este plan para asignarlo a otro atleta con una nueva fecha de inicio.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="targetAthlete">Atleta destino</Label>
+              <Select value={duplicateTargetAthleteId} onValueChange={setDuplicateTargetAthleteId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un atleta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {athletes.map((athlete) => (
+                    <SelectItem key={athlete.id} value={athlete.id}>
+                      {athlete.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newName">Nombre del plan (opcional)</Label>
+              <Input
+                id="newName"
+                value={duplicateNewName}
+                onChange={(e) => setDuplicateNewName(e.target.value)}
+                placeholder="Nombre del nuevo plan"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Fecha de inicio</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={duplicateStartDate}
+                onChange={(e) => setDuplicateStartDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicateDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleDuplicatePlan} 
+              disabled={!duplicateTargetAthleteId || !duplicateStartDate || isDuplicating}
+            >
+              {isDuplicating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Duplicando...
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Duplicar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Template Dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Guardar como Plantilla</DialogTitle>
+            <DialogDescription>
+              Crea una plantilla reutilizable a partir de este plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="templateName">Nombre de la plantilla</Label>
+              <Input
+                id="templateName"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Nombre de la plantilla"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateTemplate} disabled={isCreatingTemplate}>
+              {isCreatingTemplate ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Crear Plantilla
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Session Feedback Dialog */}
+      <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Feedback de Sesión</DialogTitle>
+            <DialogDescription>
+              {selectedSession?.title} - {selectedSession && formatDate(selectedSession.date)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="coachNotes">Notas internas (solo para ti)</Label>
+              <Textarea
+                id="coachNotes"
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+                placeholder="Notas privadas sobre esta sesión..."
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="coachFeedback">Feedback para el atleta</Label>
+              <Textarea
+                id="coachFeedback"
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="Comentarios visibles para el atleta..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFeedbackDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveFeedback} disabled={isSavingFeedback}>
+              {isSavingFeedback ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Guardar Feedback
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

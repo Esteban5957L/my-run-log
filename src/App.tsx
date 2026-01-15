@@ -129,6 +129,11 @@ function AppRoutes() {
           <PlanForm />
         </ProtectedRoute>
       } />
+      <Route path="/coach/calendar" element={
+        <ProtectedRoute allowedRoles={['COACH']}>
+          <CalendarView />
+        </ProtectedRoute>
+      } />
 
       {/* Athlete routes */}
       <Route path="/" element={

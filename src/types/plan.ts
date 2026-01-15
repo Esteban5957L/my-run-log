@@ -25,6 +25,10 @@ export interface PlanSession {
   cooldown?: string;
   completed: boolean;
   skipped: boolean;
+  completedAt?: string;
+  coachNotes?: string;
+  coachFeedback?: string;
+  dayOffset?: number;
   activities?: {
     id: string;
     name: string;
@@ -39,14 +43,15 @@ export interface PlanSession {
 export interface TrainingPlan {
   id: string;
   coachId: string;
-  athleteId: string;
+  athleteId?: string;
   name: string;
   description?: string;
   startDate: string;
   endDate: string;
   status: PlanStatus;
+  isTemplate?: boolean;
   sessions: PlanSession[];
-  athlete: {
+  athlete?: {
     id: string;
     name: string;
     avatar?: string;

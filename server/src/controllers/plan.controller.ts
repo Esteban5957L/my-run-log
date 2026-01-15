@@ -372,6 +372,7 @@ export async function updateSessionStatus(req: Request, res: Response) {
       data: { 
         completed: completed ?? session.completed,
         skipped: skipped ?? session.skipped,
+        completedAt: completed ? new Date() : null,
       }
     });
 
@@ -379,5 +380,384 @@ export async function updateSessionStatus(req: Request, res: Response) {
   } catch (error) {
     console.error('Update session status error:', error);
     res.status(500).json({ error: 'Error al actualizar sesión' });
+  }
+}
+
+// Agregar comentario/feedback del coach a una sesión
+export async function addSessionFeedback(req: Request, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'COACH') {
+      return res.status(403).json({ error: 'Solo los entrenadores pueden agregar feedback' });
+    }
+
+    const sessionId = getParam(req.params.sessionId);
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId es requerido' });
+    }
+
+    const { coachNotes, coachFeedback } = req.body;
+
+    const session = await prisma.planSession.findUnique({
+      where: { id: sessionId },
+      include: { plan: true }
+    });
+
+    if (!session || session.plan.coachId !== req.user.userId) {
+      return res.status(404).json({ error: 'Sesión no encontrada' });
+    }
+
+    const updated = await prisma.planSession.update({
+      where: { id: sessionId },
+      data: { 
+        coachNotes: coachNotes !== undefined ? coachNotes : session.coachNotes,
+        coachFeedback: coachFeedback !== undefined ? coachFeedback : session.coachFeedback,
+      }
+    });
+
+    res.json({ session: updated });
+  } catch (error) {
+    console.error('Add session feedback error:', error);
+    res.status(500).json({ error: 'Error al agregar feedback' });
+  }
+}
+
+// Duplicar plan a otro atleta
+export async function duplicatePlan(req: Request, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'COACH') {
+      return res.status(403).json({ error: 'Solo los entrenadores pueden duplicar planes' });
+    }
+
+    const planId = getParam(req.params.planId);
+    if (!planId) {
+      return res.status(400).json({ error: 'planId es requerido' });
+    }
+
+    const { targetAthleteId, newName, startDate } = req.body;
+
+    if (!targetAthleteId || !startDate) {
+      return res.status(400).json({ error: 'targetAthleteId y startDate son requeridos' });
+    }
+
+    // Obtener el plan original con sus sesiones
+    const originalPlan = await prisma.trainingPlan.findUnique({
+      where: { id: planId },
+      include: { sessions: true }
+    });
+
+    if (!originalPlan || originalPlan.coachId !== req.user.userId) {
+      return res.status(404).json({ error: 'Plan no encontrado' });
+    }
+
+    // Verificar que el atleta destino pertenece al coach
+    const targetAthlete = await prisma.user.findFirst({
+      where: { id: targetAthleteId, coachId: req.user.userId }
+    });
+
+    if (!targetAthlete) {
+      return res.status(404).json({ error: 'Atleta destino no encontrado' });
+    }
+
+    // Calcular la diferencia de días entre el plan original y el nuevo
+    const originalStartDate = new Date(originalPlan.startDate);
+    const newStartDate = new Date(startDate);
+    const daysDiff = Math.floor((newStartDate.getTime() - originalStartDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Calcular nueva fecha de fin
+    const originalDuration = Math.floor((new Date(originalPlan.endDate).getTime() - originalStartDate.getTime()) / (1000 * 60 * 60 * 24));
+    const newEndDate = new Date(newStartDate);
+    newEndDate.setDate(newEndDate.getDate() + originalDuration);
+
+    // Crear el nuevo plan
+    const newPlan = await prisma.trainingPlan.create({
+      data: {
+        coachId: req.user.userId,
+        athleteId: targetAthleteId,
+        name: newName || `${originalPlan.name} (copia)`,
+        description: originalPlan.description,
+        startDate: newStartDate,
+        endDate: newEndDate,
+        status: 'DRAFT',
+        isTemplate: false,
+        sessions: {
+          create: originalPlan.sessions.map(session => {
+            const sessionDate = new Date(session.date);
+            sessionDate.setDate(sessionDate.getDate() + daysDiff);
+            return {
+              date: sessionDate,
+              sessionType: session.sessionType,
+              title: session.title,
+              description: session.description,
+              targetDistance: session.targetDistance,
+              targetDuration: session.targetDuration,
+              targetPace: session.targetPace,
+              warmup: session.warmup,
+              mainWorkout: session.mainWorkout,
+              cooldown: session.cooldown,
+              dayOffset: session.dayOffset,
+            };
+          })
+        }
+      },
+      include: {
+        sessions: true,
+        athlete: { select: { id: true, name: true } }
+      }
+    });
+
+    res.status(201).json({ plan: newPlan });
+  } catch (error) {
+    console.error('Duplicate plan error:', error);
+    res.status(500).json({ error: 'Error al duplicar plan' });
+  }
+}
+
+// Crear plantilla desde un plan existente
+export async function createTemplate(req: Request, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'COACH') {
+      return res.status(403).json({ error: 'Solo los entrenadores pueden crear plantillas' });
+    }
+
+    const planId = getParam(req.params.planId);
+    if (!planId) {
+      return res.status(400).json({ error: 'planId es requerido' });
+    }
+
+    const { templateName } = req.body;
+
+    // Obtener el plan original
+    const originalPlan = await prisma.trainingPlan.findUnique({
+      where: { id: planId },
+      include: { sessions: true }
+    });
+
+    if (!originalPlan || originalPlan.coachId !== req.user.userId) {
+      return res.status(404).json({ error: 'Plan no encontrado' });
+    }
+
+    const originalStartDate = new Date(originalPlan.startDate);
+
+    // Crear la plantilla
+    const template = await prisma.trainingPlan.create({
+      data: {
+        coachId: req.user.userId,
+        athleteId: null, // Las plantillas no tienen atleta asignado
+        name: templateName || `Plantilla: ${originalPlan.name}`,
+        description: originalPlan.description,
+        startDate: new Date(), // Fecha de referencia
+        endDate: new Date(Date.now() + (new Date(originalPlan.endDate).getTime() - originalStartDate.getTime())),
+        status: 'DRAFT',
+        isTemplate: true,
+        sessions: {
+          create: originalPlan.sessions.map(session => {
+            const sessionDate = new Date(session.date);
+            const dayOffset = Math.floor((sessionDate.getTime() - originalStartDate.getTime()) / (1000 * 60 * 60 * 24));
+            return {
+              date: sessionDate,
+              sessionType: session.sessionType,
+              title: session.title,
+              description: session.description,
+              targetDistance: session.targetDistance,
+              targetDuration: session.targetDuration,
+              targetPace: session.targetPace,
+              warmup: session.warmup,
+              mainWorkout: session.mainWorkout,
+              cooldown: session.cooldown,
+              dayOffset: dayOffset,
+            };
+          })
+        }
+      },
+      include: { sessions: true }
+    });
+
+    res.status(201).json({ template });
+  } catch (error) {
+    console.error('Create template error:', error);
+    res.status(500).json({ error: 'Error al crear plantilla' });
+  }
+}
+
+// Obtener plantillas del coach
+export async function getTemplates(req: Request, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'COACH') {
+      return res.status(403).json({ error: 'Solo los entrenadores pueden ver plantillas' });
+    }
+
+    const templates = await prisma.trainingPlan.findMany({
+      where: {
+        coachId: req.user.userId,
+        isTemplate: true,
+      },
+      include: {
+        _count: { select: { sessions: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ templates });
+  } catch (error) {
+    console.error('Get templates error:', error);
+    res.status(500).json({ error: 'Error al obtener plantillas' });
+  }
+}
+
+// Crear plan desde plantilla
+export async function createPlanFromTemplate(req: Request, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'COACH') {
+      return res.status(403).json({ error: 'Solo los entrenadores pueden crear planes' });
+    }
+
+    const templateId = getParam(req.params.templateId);
+    if (!templateId) {
+      return res.status(400).json({ error: 'templateId es requerido' });
+    }
+
+    const { athleteId, planName, startDate } = req.body;
+
+    if (!athleteId || !startDate) {
+      return res.status(400).json({ error: 'athleteId y startDate son requeridos' });
+    }
+
+    // Obtener la plantilla
+    const template = await prisma.trainingPlan.findUnique({
+      where: { id: templateId },
+      include: { sessions: true }
+    });
+
+    if (!template || template.coachId !== req.user.userId || !template.isTemplate) {
+      return res.status(404).json({ error: 'Plantilla no encontrada' });
+    }
+
+    // Verificar que el atleta pertenece al coach
+    const athlete = await prisma.user.findFirst({
+      where: { id: athleteId, coachId: req.user.userId }
+    });
+
+    if (!athlete) {
+      return res.status(404).json({ error: 'Atleta no encontrado' });
+    }
+
+    const newStartDate = new Date(startDate);
+    
+    // Calcular duración de la plantilla
+    const templateDuration = Math.floor(
+      (new Date(template.endDate).getTime() - new Date(template.startDate).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const newEndDate = new Date(newStartDate);
+    newEndDate.setDate(newEndDate.getDate() + templateDuration);
+
+    // Crear el plan
+    const plan = await prisma.trainingPlan.create({
+      data: {
+        coachId: req.user.userId,
+        athleteId,
+        name: planName || template.name.replace('Plantilla: ', ''),
+        description: template.description,
+        startDate: newStartDate,
+        endDate: newEndDate,
+        status: 'DRAFT',
+        isTemplate: false,
+        sessions: {
+          create: template.sessions.map(session => {
+            const sessionDate = new Date(newStartDate);
+            sessionDate.setDate(sessionDate.getDate() + (session.dayOffset || 0));
+            return {
+              date: sessionDate,
+              sessionType: session.sessionType,
+              title: session.title,
+              description: session.description,
+              targetDistance: session.targetDistance,
+              targetDuration: session.targetDuration,
+              targetPace: session.targetPace,
+              warmup: session.warmup,
+              mainWorkout: session.mainWorkout,
+              cooldown: session.cooldown,
+              dayOffset: session.dayOffset,
+            };
+          })
+        }
+      },
+      include: {
+        sessions: true,
+        athlete: { select: { id: true, name: true } }
+      }
+    });
+
+    res.status(201).json({ plan });
+  } catch (error) {
+    console.error('Create plan from template error:', error);
+    res.status(500).json({ error: 'Error al crear plan desde plantilla' });
+  }
+}
+
+// Obtener todas las sesiones para el calendario
+export async function getCalendarSessions(req: Request, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const startDateStr = getParam(req.query.startDate);
+    const endDateStr = getParam(req.query.endDate);
+    const athleteId = getParam(req.query.athleteId);
+
+    const startDate = startDateStr ? new Date(startDateStr) : new Date(new Date().setDate(1)); // Primer día del mes
+    const endDate = endDateStr ? new Date(endDateStr) : new Date(new Date().setMonth(new Date().getMonth() + 1, 0)); // Último día del mes
+
+    let where: any = {
+      date: {
+        gte: startDate,
+        lte: endDate,
+      },
+      plan: {
+        isTemplate: false,
+      }
+    };
+
+    if (req.user.role === 'COACH') {
+      where.plan.coachId = req.user.userId;
+      if (athleteId) {
+        where.plan.athleteId = athleteId;
+      }
+    } else {
+      where.plan.athleteId = req.user.userId;
+    }
+
+    const sessions = await prisma.planSession.findMany({
+      where,
+      include: {
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            athlete: { select: { id: true, name: true, avatar: true } }
+          }
+        },
+        activities: {
+          select: { id: true, name: true, distance: true, duration: true }
+        }
+      },
+      orderBy: { date: 'asc' }
+    });
+
+    // Agrupar por fecha
+    const sessionsByDate: Record<string, typeof sessions> = {};
+    sessions.forEach(session => {
+      const dateKey = session.date.toISOString().split('T')[0];
+      if (!sessionsByDate[dateKey]) {
+        sessionsByDate[dateKey] = [];
+      }
+      sessionsByDate[dateKey].push(session);
+    });
+
+    res.json({ sessions, sessionsByDate });
+  } catch (error) {
+    console.error('Get calendar sessions error:', error);
+    res.status(500).json({ error: 'Error al obtener sesiones del calendario' });
   }
 }

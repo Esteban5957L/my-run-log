@@ -179,6 +179,14 @@ export default function CoachDashboard() {
               <Button 
                 variant="ghost" 
                 size="icon" 
+                onClick={() => navigate('/coach/calendar')}
+                title="Calendario"
+              >
+                <Calendar className="w-5 h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
                 onClick={() => navigate('/coach/plans')}
                 title="Planes de Entrenamiento"
               >
