@@ -14,7 +14,9 @@ import {
   Copy,
   Check,
   RefreshCw,
-  LogOut
+  LogOut,
+  Calendar,
+  ClipboardList
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { athleteService } from '@/services/athlete.service';
@@ -149,6 +151,14 @@ export default function CoachDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate('/coach/plans')}
+                title="Planes de Entrenamiento"
+              >
+                <ClipboardList className="w-5 h-5" />
+              </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 

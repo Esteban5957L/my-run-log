@@ -32,6 +32,11 @@ import GoalsView from "./pages/GoalsView";
 import GearView from "./pages/GearView";
 import NotFound from "./pages/NotFound";
 
+// Plan pages
+import Plans from "./pages/Plans";
+import PlanForm from "./pages/PlanForm";
+import PlanDetail from "./pages/PlanDetail";
+
 const queryClient = new QueryClient();
 
 // Protected Route component
@@ -104,6 +109,26 @@ function AppRoutes() {
           <Chat />
         </ProtectedRoute>
       } />
+      <Route path="/coach/plans" element={
+        <ProtectedRoute allowedRoles={['COACH']}>
+          <Plans />
+        </ProtectedRoute>
+      } />
+      <Route path="/coach/plans/new" element={
+        <ProtectedRoute allowedRoles={['COACH']}>
+          <PlanForm />
+        </ProtectedRoute>
+      } />
+      <Route path="/coach/plans/:planId" element={
+        <ProtectedRoute allowedRoles={['COACH']}>
+          <PlanDetail />
+        </ProtectedRoute>
+      } />
+      <Route path="/coach/plans/:planId/edit" element={
+        <ProtectedRoute allowedRoles={['COACH']}>
+          <PlanForm />
+        </ProtectedRoute>
+      } />
 
       {/* Athlete routes */}
       <Route path="/" element={
@@ -128,7 +153,12 @@ function AppRoutes() {
       } />
       <Route path="/plans" element={
         <ProtectedRoute allowedRoles={['ATHLETE']}>
-          <GoalsView />
+          <Plans />
+        </ProtectedRoute>
+      } />
+      <Route path="/plans/:planId" element={
+        <ProtectedRoute allowedRoles={['ATHLETE']}>
+          <PlanDetail />
         </ProtectedRoute>
       } />
       <Route path="/settings" element={
