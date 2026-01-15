@@ -16,10 +16,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Map,
 } from 'lucide-react';
-import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet';
-import { LatLngExpression, LatLngBounds } from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { useAuth } from '@/contexts/AuthContext';
 import { activityService } from '@/services/activity.service';
 import { Activity, ACTIVITY_TYPE_LABELS } from '@/types/activity';
@@ -34,56 +32,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { RunnioLogo } from '@/components/ui/RunnioLogo';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-} from 'recharts';
-
-// Decodificar polyline de Google/Strava
-function decodePolyline(encoded: string): LatLngExpression[] {
-  const points: LatLngExpression[] = [];
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-
-  while (index < encoded.length) {
-    let b;
-    let shift = 0;
-    let result = 0;
-
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-
-    const dlat = result & 1 ? ~(result >> 1) : result >> 1;
-    lat += dlat;
-
-    shift = 0;
-    result = 0;
-
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-
-    const dlng = result & 1 ? ~(result >> 1) : result >> 1;
-    lng += dlng;
-
-    points.push([lat / 1e5, lng / 1e5]);
-  }
-
-  return points;
-}
 
 function formatDistance(km: number): string {
   return km.toFixed(2) + ' km';
@@ -199,27 +147,6 @@ export default function ActivityDetail() {
     }
   };
 
-  // Decodificar polyline para el mapa
-  const routePoints = useMemo(() => {
-    if (!activity?.mapPolyline) return [];
-    try {
-      return decodePolyline(activity.mapPolyline);
-    } catch {
-      return [];
-    }
-  }, [activity?.mapPolyline]);
-
-  // Calcular bounds del mapa
-  const mapBounds = useMemo(() => {
-    if (routePoints.length === 0) return null;
-    const lats = routePoints.map(p => (p as [number, number])[0]);
-    const lngs = routePoints.map(p => (p as [number, number])[1]);
-    return new LatLngBounds(
-      [Math.min(...lats), Math.min(...lngs)],
-      [Math.max(...lats), Math.max(...lngs)]
-    );
-  }, [routePoints]);
-
   // Parsear splits
   const splits: Split[] = useMemo(() => {
     if (!activity?.splits) return [];
@@ -231,17 +158,6 @@ export default function ActivityDetail() {
       return [];
     }
   }, [activity?.splits]);
-
-  // Datos para gráficos de splits
-  const splitsChartData = useMemo(() => {
-    return splits.map((split, index) => ({
-      km: index + 1,
-      pace: split.moving_time / (split.distance / 1000), // segundos por km
-      paceFormatted: formatPace(split.moving_time / (split.distance / 1000)),
-      heartRate: split.average_heartrate || 0,
-      elevation: split.elevation_difference || 0,
-    }));
-  }, [splits]);
 
   if (isLoading) {
     return (
@@ -292,37 +208,23 @@ export default function ActivityDetail() {
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
-        {/* Mapa */}
-        {routePoints.length > 0 && mapBounds && (
+        {/* Mapa placeholder */}
+        {activity.mapPolyline && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
             <Card className="overflow-hidden">
-              <div className="h-[300px] sm:h-[400px]">
-                <MapContainer
-                  bounds={mapBounds}
-                  style={{ height: '100%', width: '100%' }}
-                  scrollWheelZoom={false}
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  <Polyline
-                    positions={routePoints}
-                    pathOptions={{ color: '#f97316', weight: 4 }}
-                  />
+              <div className="h-[200px] flex items-center justify-center bg-muted/30">
+                <div className="text-center text-muted-foreground">
+                  <Map className="w-12 h-12 mx-auto mb-2" />
+                  <p className="text-sm">Mapa del recorrido disponible</p>
                   {activity.startLat && activity.startLng && (
-                    <CircleMarker 
-                      center={[activity.startLat, activity.startLng]} 
-                      radius={8}
-                      pathOptions={{ color: '#22c55e', fillColor: '#22c55e', fillOpacity: 1 }}
-                    >
-                      <Popup>Inicio</Popup>
-                    </CircleMarker>
+                    <p className="text-xs mt-1">
+                      Inicio: {activity.startLat.toFixed(4)}, {activity.startLng.toFixed(4)}
+                    </p>
                   )}
-                </MapContainer>
+                </div>
               </div>
             </Card>
           </motion.div>
@@ -410,123 +312,12 @@ export default function ActivityDetail() {
           )}
         </motion.div>
 
-        {/* Gráfico de ritmo por km */}
-        {splitsChartData.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Ritmo por Kilómetro</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={splitsChartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis 
-                        dataKey="km" 
-                        tick={{ fontSize: 12 }} 
-                        tickFormatter={(v) => `${v}km`}
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(v) => {
-                          const mins = Math.floor(v / 60);
-                          const secs = Math.round(v % 60);
-                          return `${mins}:${secs.toString().padStart(2, '0')}`;
-                        }}
-                        domain={['dataMin - 30', 'dataMax + 30']}
-                        reversed
-                      />
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="bg-card border border-border rounded-lg p-2 text-sm">
-                                <p className="font-medium">Km {data.km}</p>
-                                <p className="text-primary">{data.paceFormatted}</p>
-                                {data.heartRate > 0 && (
-                                  <p className="text-red-500">❤️ {data.heartRate} bpm</p>
-                                )}
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Bar 
-                        dataKey="pace" 
-                        fill="hsl(var(--primary))" 
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Gráfico de frecuencia cardíaca */}
-        {splitsChartData.some(d => d.heartRate > 0) && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Frecuencia Cardíaca</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[150px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={splitsChartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis 
-                        dataKey="km" 
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(v) => `${v}km`}
-                      />
-                      <YAxis tick={{ fontSize: 12 }} domain={['auto', 'auto']} />
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="bg-card border border-border rounded-lg p-2 text-sm">
-                                <p className="font-medium">Km {data.km}</p>
-                                <p className="text-red-500">❤️ {data.heartRate} bpm</p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="heartRate"
-                        stroke="#ef4444"
-                        fill="#ef444433"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
         {/* Tabla de Splits */}
         {splits.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 0.3 }}
           >
             <Card>
               <CardHeader>
@@ -586,7 +377,7 @@ export default function ActivityDetail() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.4 }}
           >
             <Card>
               <CardHeader>
@@ -603,7 +394,7 @@ export default function ActivityDetail() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
+          transition={{ delay: 0.5 }}
         >
           <Card>
             <CardHeader>
@@ -655,7 +446,7 @@ export default function ActivityDetail() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.6 }}
           className="text-center text-xs text-muted-foreground pb-8"
         >
           <p>
