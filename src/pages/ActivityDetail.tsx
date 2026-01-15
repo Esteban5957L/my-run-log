@@ -17,7 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet';
 import { LatLngExpression, LatLngBounds } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,7 +25,6 @@ import { activityService } from '@/services/activity.service';
 import { Activity, ACTIVITY_TYPE_LABELS } from '@/types/activity';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -310,9 +309,13 @@ export default function ActivityDetail() {
                     pathOptions={{ color: '#f97316', weight: 4 }}
                   />
                   {activity.startLat && activity.startLng && (
-                    <Marker position={[activity.startLat, activity.startLng]}>
+                    <CircleMarker 
+                      center={[activity.startLat, activity.startLng]} 
+                      radius={8}
+                      pathOptions={{ color: '#22c55e', fillColor: '#22c55e', fillOpacity: 1 }}
+                    >
                       <Popup>Inicio</Popup>
-                    </Marker>
+                    </CircleMarker>
                   )}
                 </MapContainer>
               </div>
