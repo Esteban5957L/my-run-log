@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
-import { LatLngExpression, LatLngBounds } from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useMemo } from 'react';
+import { MapPin, Navigation } from 'lucide-react';
 
 // Decodificar polyline de Google/Strava
-function decodePolyline(encoded: string): LatLngExpression[] {
-  const points: LatLngExpression[] = [];
+function decodePolyline(encoded: string): [number, number][] {
+  const points: [number, number][] = [];
   let index = 0;
   let lat = 0;
   let lng = 0;
@@ -48,70 +47,97 @@ interface ActivityMapProps {
 }
 
 export default function ActivityMap({ polyline, startLat, startLng }: ActivityMapProps) {
-  const [MapComponents, setMapComponents] = useState<{
-    MapContainer: any;
-    TileLayer: any;
-    Polyline: any;
-    CircleMarker: any;
-  } | null>(null);
+  // Decodificar y simplificar polyline para la URL (máximo ~100 puntos)
+  const { encodedPath, center, bounds } = useMemo(() => {
+    const points = decodePolyline(polyline);
+    if (points.length === 0) return { encodedPath: '', center: null, bounds: null };
 
-  // Cargar react-leaflet dinámicamente solo en el cliente
-  useEffect(() => {
-    import('react-leaflet').then((mod) => {
-      setMapComponents({
-        MapContainer: mod.MapContainer,
-        TileLayer: mod.TileLayer,
-        Polyline: mod.Polyline,
-        CircleMarker: mod.CircleMarker,
-      });
-    });
-  }, []);
+    // Calcular centro y bounds
+    const lats = points.map(p => p[0]);
+    const lngs = points.map(p => p[1]);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
 
-  // Decodificar polyline
-  const routePoints = decodePolyline(polyline);
+    // Simplificar puntos para la URL (tomar cada N puntos)
+    const step = Math.max(1, Math.floor(points.length / 80));
+    const simplified = points.filter((_, i) => i % step === 0 || i === points.length - 1);
 
-  // Calcular bounds del mapa
-  const mapBounds = (() => {
-    if (routePoints.length === 0) return null;
-    const lats = routePoints.map(p => (p as [number, number])[0]);
-    const lngs = routePoints.map(p => (p as [number, number])[1]);
-    return new LatLngBounds(
-      [Math.min(...lats), Math.min(...lngs)],
-      [Math.max(...lats), Math.max(...lngs)]
-    );
-  })();
+    // Crear path para OpenStreetMap static map
+    const pathStr = simplified.map(p => `${p[0].toFixed(5)},${p[1].toFixed(5)}`).join('|');
 
-  if (!MapComponents || !mapBounds || routePoints.length === 0) {
+    return {
+      encodedPath: pathStr,
+      center: { lat: centerLat, lng: centerLng },
+      bounds: { minLat, maxLat, minLng, maxLng }
+    };
+  }, [polyline]);
+
+  // Calcular zoom basado en el tamaño del área
+  const zoom = useMemo(() => {
+    if (!bounds) return 13;
+    const latDiff = bounds.maxLat - bounds.minLat;
+    const lngDiff = bounds.maxLng - bounds.minLng;
+    const maxDiff = Math.max(latDiff, lngDiff);
+    
+    if (maxDiff > 0.5) return 10;
+    if (maxDiff > 0.2) return 11;
+    if (maxDiff > 0.1) return 12;
+    if (maxDiff > 0.05) return 13;
+    if (maxDiff > 0.02) return 14;
+    return 15;
+  }, [bounds]);
+
+  if (!center) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-muted/30">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-muted-foreground">Sin datos de mapa</p>
       </div>
     );
   }
 
-  const { MapContainer, TileLayer, Polyline, CircleMarker } = MapComponents;
+  // Usar OpenStreetMap Static Map API (gratuito)
+  // Alternativa: usar una imagen SVG del recorrido
+  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bounds?.minLng},${bounds?.minLat},${bounds?.maxLng},${bounds?.maxLat}&layer=mapnik&marker=${startLat || center.lat},${startLng || center.lng}`;
 
   return (
-    <MapContainer
-      bounds={mapBounds}
-      style={{ height: '100%', width: '100%' }}
-      scrollWheelZoom={false}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    <div className="h-full w-full relative">
+      {/* Iframe de OpenStreetMap */}
+      <iframe
+        src={mapUrl}
+        className="w-full h-full border-0"
+        style={{ filter: 'saturate(0.8) contrast(1.1)' }}
+        title="Mapa del recorrido"
+        loading="lazy"
       />
-      <Polyline
-        positions={routePoints}
-        pathOptions={{ color: '#f97316', weight: 4 }}
-      />
-      {startLat && startLng && (
-        <CircleMarker 
-          center={[startLat, startLng]} 
-          radius={8}
-          pathOptions={{ color: '#22c55e', fillColor: '#22c55e', fillOpacity: 1 }}
-        />
-      )}
-    </MapContainer>
+      
+      {/* Overlay con info */}
+      <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm rounded-lg px-3 py-2 text-xs flex items-center gap-4">
+        <div className="flex items-center gap-1">
+          <MapPin className="w-3 h-3 text-green-500" />
+          <span>Inicio</span>
+        </div>
+        {startLat && startLng && (
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Navigation className="w-3 h-3" />
+            <span>{startLat.toFixed(4)}, {startLng.toFixed(4)}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Link para ver en OSM */}
+      <a
+        href={`https://www.openstreetmap.org/?mlat=${startLat || center.lat}&mlon=${startLng || center.lng}#map=${zoom}/${center.lat}/${center.lng}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs hover:bg-background transition-colors"
+      >
+        Ver en OpenStreetMap →
+      </a>
+    </div>
   );
 }
