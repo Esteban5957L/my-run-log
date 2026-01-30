@@ -4,10 +4,11 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Copiar prisma antes de npm ci para que postinstall (prisma generate) encuentre el schema
 COPY server/package.json server/package-lock.json ./
+COPY server/prisma ./prisma/
 RUN npm ci
 
-COPY server/prisma ./prisma/
 RUN npx prisma generate
 
 COPY server/tsconfig.json ./
