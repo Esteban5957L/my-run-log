@@ -2,6 +2,9 @@
 # Contexto: raíz del repo (Railway usa root + -f server/Dockerfile)
 FROM node:22-alpine AS builder
 
+# Prisma necesita OpenSSL para el schema/query engine
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 # Copiar prisma antes de npm ci para que postinstall (prisma generate) encuentre el schema
@@ -17,6 +20,9 @@ RUN npm run build
 
 # ---- Production ----
 FROM node:22-alpine AS runner
+
+# Prisma necesita OpenSSL para migrate deploy y el cliente en runtime
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
