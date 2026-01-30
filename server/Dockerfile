@@ -30,14 +30,6 @@ RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
 
-# Script de inicio (migraciones + app)
-RUN echo '#!/bin/sh\n\
-set -e\n\
-echo "Running migrations..."\n\
-npx prisma migrate deploy\n\
-echo "Starting app..."\n\
-exec node dist/index.js' > start.sh && chmod +x start.sh
-
 # Usuario no root
 RUN addgroup -g 1001 nodejs && \
     adduser -S nodejs -u 1001 && \
@@ -45,4 +37,5 @@ RUN addgroup -g 1001 nodejs && \
 
 USER nodejs
 
-CMD ["./start.sh"]
+# Migraciones y luego arrancar la app (sin script intermedio para evitar "not found")
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/index.js"]
