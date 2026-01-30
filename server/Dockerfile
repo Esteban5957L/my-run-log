@@ -21,10 +21,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Copiar prisma antes de npm ci para que postinstall (prisma generate) encuentre el schema
 COPY server/package.json server/package-lock.json ./
-RUN npm ci --omit=dev
-
 COPY server/prisma ./prisma/
+RUN npm ci --omit=dev
 RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
