@@ -1,5 +1,5 @@
+# Backend API - build desde raíz para que Railway use Docker
 # ---- Build ----
-# Contexto: raíz del repo (Railway usa root + -f server/Dockerfile)
 FROM node:22-alpine AS builder
 
 WORKDIR /app
@@ -29,19 +29,6 @@ RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
 
-# Script de inicio (migraciones + app)
-RUN echo '#!/bin/sh\n\
-set -e\n\
-echo "Running migrations..."\n\
-npx prisma migrate deploy\n\
-echo "Starting app..."\n\
-exec node dist/index.js' > start.sh && chmod +x start.sh
+EXPOSE 3001
 
-# Usuario no root
-RUN addgroup -g 1001 nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
-
-USER nodejs
-
-CMD ["./start.sh"]
+CMD ["node", "dist/index.js"]
