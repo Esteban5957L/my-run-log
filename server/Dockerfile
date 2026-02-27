@@ -1,5 +1,5 @@
 # ---- Build ----
-# Contexto: raíz del repo (Railway usa root + -f server/Dockerfile)
+# Contexto esperado: carpeta server (EasyPanel build context apuntando a /server)
 FROM node:22-alpine AS builder
 
 # Prisma necesita OpenSSL para el schema/query engine
@@ -8,14 +8,14 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Copiar prisma antes de npm ci para que postinstall (prisma generate) encuentre el schema
-COPY server/package.json server/package-lock.json ./
-COPY server/prisma ./prisma/
-RUN npm ci
+COPY package.json package-lock.json ./
+COPY prisma ./prisma/
+RUN npm ci --ignore-scripts
 
 RUN npx prisma generate
 
-COPY server/tsconfig.json ./
-COPY server/src ./src/
+COPY tsconfig.json ./
+COPY src ./src/
 RUN npm run build
 
 # ---- Production ----
@@ -29,9 +29,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Copiar prisma antes de npm ci para que postinstall (prisma generate) encuentre el schema
-COPY server/package.json server/package-lock.json ./
-COPY server/prisma ./prisma/
-RUN npm ci --omit=dev
+COPY package.json package-lock.json ./
+COPY prisma ./prisma/
+RUN npm ci --omit=dev --ignore-scripts
 RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
