@@ -2,7 +2,11 @@ import { io, Socket } from 'socket.io-client';
 import type { Message } from '@/types/message';
 import type { Notification } from './notification.service';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const viteEnv = ((import.meta as unknown as { env?: Record<string, string | boolean> }).env ?? {});
+const viteSocketUrl = typeof viteEnv.VITE_SOCKET_URL === 'string' ? viteEnv.VITE_SOCKET_URL.trim() : '';
+const isProd = viteEnv.PROD === true;
+
+const SOCKET_URL = viteSocketUrl || (isProd ? window.location.origin : 'http://localhost:3001');
 
 class SocketService {
   private socket: Socket | null = null;

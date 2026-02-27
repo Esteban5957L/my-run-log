@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const viteEnv = ((import.meta as unknown as { env?: Record<string, string | boolean> }).env ?? {});
+const viteApiUrl = typeof viteEnv.VITE_API_URL === 'string' ? viteEnv.VITE_API_URL.trim() : '';
+const isProd = viteEnv.PROD === true;
+
+const API_BASE_URL = viteApiUrl || (isProd ? `${window.location.origin}/api` : 'http://localhost:3001/api');
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
