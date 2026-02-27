@@ -4,6 +4,11 @@ pipeline {
   options {
     timestamps()
     disableConcurrentBuilds()
+    skipDefaultCheckout(true)
+  }
+
+  tools {
+    nodejs 'node20'
   }
 
   parameters {
