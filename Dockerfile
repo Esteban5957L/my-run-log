@@ -9,7 +9,7 @@ WORKDIR /app
 
 COPY server/package.json server/package-lock.json ./
 COPY server/prisma ./prisma/
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 RUN npx prisma generate
 
@@ -29,7 +29,7 @@ ENV NODE_ENV=production
 
 COPY server/package.json server/package-lock.json ./
 COPY server/prisma ./prisma/
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 RUN npx prisma generate
 
